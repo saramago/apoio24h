@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apoio 24H - Apoio Psicológico a Qualquer Hora!</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 500px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            margin: auto;
+        }
+        h1 {
+            color: #333;
+            font-size: 28px;
+        }
+        h2 {
+            color: #d9534f;
+            font-size: 22px;
+            margin-top: 10px;
+        }
+        p {
+            font-size: 16px;
+            color: #555;
+        }
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        .button {
+            display: inline-block;
+            padding: 15px 20px;
+            font-size: 18px;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            flex-grow: 1;
+            text-align: center;
+            min-width: 120px;
+            word-wrap: break-word;
+        }
+        .button-1 {
+            background-color: #e83e8c;
+        }
+        .button-1:hover {
+            background-color: #c82361;
+        }
+        .button-3 {
+            background-color: #28a745;
+        }
+        .button-3:hover {
+            background-color: #218838;
+        }
+        .button-99 {
+            background-color: #007bff;
+        }
+        .button-99:hover {
+            background-color: #0056b3;
+        }
+        @media (max-width: 600px) {
+            .button-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            .button {
+                width: 100%;
+                max-width: 250px;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Apoio 24H</h1>
+        <h2>Apoio Psicológico a Qualquer Hora!</h2>
+        <p>Está a sentir-se sobrecarregado, ansioso ou sem direção? O <strong>Apoio 24H</strong> está aqui para escutá-lo. 
+        Seja um problema no trabalho, familiar ou uma preocupação mais grave, fale connosco.</p>
+        <p><strong>Pagamento via MB Way:</strong></p>
+        <p>Envie o valor da sessão para o número <strong>912606050</strong> e siga as instruções recebidas.</p>
+        <div class="button-container">
+            <a class="button button-1" href="mbway://send?phone=912606050&amount=1">Pagar 1€<br>(1 Minuto)</a>
+            <a class="button button-3" href="mbway://send?phone=912606050&amount=3">Pagar 3€<br>(15 Minutos)</a>
+            <a class="button button-99" href="mbway://send?phone=912606050&amount=99">Pagar 99€<br>(3 Horas)</a>
+        </div>
+    </div>
+</body>
+</html>
