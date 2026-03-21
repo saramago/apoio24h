@@ -3,129 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apoio 24H | Assistente de Apoio Emocional</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <title>Apoio 24H - Apoio Psicológico a Qualquer Hora!</title>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <main class="shell">
-        <section class="hero card" id="hero">
-            <p class="eyebrow">Apoio 24H</p>
-            <h1>Conversa guiada com IA para apoio emocional, com o teu onboarding e os teus prompts.</h1>
-            <p class="lede">
-                A pessoa clica no botão, faz um onboarding nominal simples e entra numa conversa guiada por um
-                assistente configurado com o teu guião em <code>prompts/advisor_system.txt</code>.
-            </p>
-            <div class="hero-actions">
-                <button id="start-button" class="primary-button">Começar onboarding</button>
-                <a href="#safety" class="secondary-link">Ver aviso importante</a>
-            </div>
-            <div class="mini-grid">
-                <article>
-                    <span>1</span>
-                    <h2>Onboarding nominal</h2>
-                    <p>Nome, objetivo, intensidade emocional e contexto inicial.</p>
-                </article>
-                <article>
-                    <span>2</span>
-                    <h2>Primeira resposta automática</h2>
-                    <p>O servidor envia o contexto para a OpenAI e inicia a sessão.</p>
-                </article>
-                <article>
-                    <span>3</span>
-                    <h2>Conversa contínua</h2>
-                    <p>O histórico da resposta é encadeado pela API para manter contexto.</p>
-                </article>
-            </div>
-        </section>
+    <div class="container">
+        <h1>Apoio 24H</h1>
+        <h2>Apoio Psicológico a Qualquer Hora!</h2>
+        <p>
+            Está a sentir-se sobrecarregado, ansioso ou sem direção? O <strong>Apoio 24H</strong> está aqui para escutá-lo.
+            Escolha o check-in pretendido, autorize o pagamento no MB WAY e inicie a conversa.
+        </p>
+        <p><strong>Pagamento via MB WAY:</strong></p>
+        <p>O pedido de pagamento será enviado para o número <strong>912606050</strong>.</p>
 
-        <section class="card panel hidden" id="onboarding-panel">
-            <div class="panel-header">
-                <div>
-                    <p class="eyebrow">Passo 1</p>
-                    <h2>Onboarding inicial</h2>
-                </div>
-                <p class="panel-copy">Preenche estes dados para personalizar o acolhimento inicial.</p>
+        <div class="button-container" id="session-buttons">
+            <button class="button button-1 session-button" data-plan="5min">Check-in 1€<br>(5 Minutos)</button>
+            <button class="button button-3 session-button" data-plan="30min">Check-in 5€<br>(30 Minutos)</button>
+            <button class="button button-99 session-button" data-plan="60min">Check-in 49€<br>(1 Hora)</button>
+        </div>
+
+        <div id="checkin-panel" class="hidden">
+            <div class="status-box">
+                <p id="status-text">Escolha um check-in para começar.</p>
+                <p id="payment-note" class="small-text"></p>
             </div>
+        </div>
 
-            <form id="onboarding-form" class="form-grid">
-                <label>
-                    Primeiro nome
-                    <input type="text" name="firstName" placeholder="Ex.: Marta" required>
-                </label>
-                <label>
-                    Como quer ser tratado(a)
-                    <input type="text" name="preferredName" placeholder="Ex.: Marta ou Dra. Marta">
-                </label>
-                <label>
-                    Faixa etária
-                    <select name="ageRange" required>
-                        <option value="">Selecionar</option>
-                        <option>Menos de 18</option>
-                        <option>18-24</option>
-                        <option>25-34</option>
-                        <option>35-44</option>
-                        <option>45-54</option>
-                        <option>55+</option>
-                    </select>
-                </label>
-                <label>
-                    Intensidade emocional agora
-                    <select name="distressLevel" required>
-                        <option value="">Selecionar</option>
-                        <option>Baixa</option>
-                        <option>Média</option>
-                        <option>Alta</option>
-                        <option>Muito alta</option>
-                    </select>
-                </label>
-                <label class="full">
-                    O que a trouxe aqui hoje?
-                    <textarea name="reason" rows="4" placeholder="Ex.: ansiedade, relação, luto, sobrecarga no trabalho..." required></textarea>
-                </label>
-                <label class="full">
-                    O que gostava de alcançar nesta conversa?
-                    <textarea name="goal" rows="3" placeholder="Ex.: sentir-me mais calma, organizar pensamentos, receber orientação inicial..." required></textarea>
-                </label>
-                <label class="consent full">
-                    <input type="checkbox" name="consent" required>
-                    <span>Compreendo que este serviço usa IA para apoio conversacional e não substitui acompanhamento clínico humano nem resposta de emergência.</span>
-                </label>
-                <button type="submit" class="primary-button wide">Iniciar conversa</button>
-            </form>
-        </section>
-
-        <section class="card panel hidden" id="chat-panel">
-            <div class="panel-header">
-                <div>
-                    <p class="eyebrow">Passo 2</p>
-                    <h2>Conversa guiada</h2>
-                </div>
-                <div class="session-badge" id="session-badge">Sessão pronta</div>
-            </div>
-
+        <div id="chat-panel" class="chat-panel hidden">
             <div id="chat-log" class="chat-log" aria-live="polite"></div>
-
             <form id="chat-form" class="chat-form">
-                <textarea id="chat-input" name="message" rows="3" placeholder="Escreva aqui o que está a sentir..." required></textarea>
+                <textarea id="chat-input" name="message" rows="4" placeholder="Escreva aqui o que está a sentir..." required></textarea>
                 <div class="chat-actions">
-                    <p id="status-text" class="status-text">A aguardar início da sessão.</p>
-                    <button type="submit" class="primary-button">Enviar mensagem</button>
+                    <p class="small-text">
+                        Sandbox ativo: o pagamento MB WAY e autorizado automaticamente para efeitos de teste.
+                    </p>
+                    <button type="submit" class="button button-99 chat-submit">Enviar mensagem</button>
                 </div>
             </form>
-        </section>
+        </div>
 
-        <section class="card notice" id="safety">
-            <p class="eyebrow">Aviso importante</p>
+        <div class="notice">
             <p>
-                Este protótipo destina-se a apoio conversacional e triagem leve. Não deve ser apresentado como
-                substituto de psicoterapia, diagnóstico ou resposta a crises. Em caso de risco imediato, a pessoa
-                deve contactar os serviços de emergência locais.
+                Este protótipo destina-se a apoio conversacional. Não substitui psicoterapia, diagnóstico clínico nem resposta de emergência.
             </p>
-        </section>
-    </main>
+        </div>
+    </div>
 
     <script src="/static/app.js"></script>
 </body>

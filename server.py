@@ -2,6 +2,8 @@
 
 import json
 import os
+import time
+import uuid
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -12,6 +14,15 @@ from urllib.request import Request, urlopen
 BASE_DIR = Path(__file__).resolve().parent
 PROMPT_FILE = BASE_DIR / "prompts" / "advisor_system.txt"
 DEFAULT_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
+MBWAY_PHONE = os.environ.get("MBWAY_PHONE", "912606050")
+MBWAY_MODE = os.environ.get("MBWAY_MODE", "mock").strip().lower()
+MBWAY_SANDBOX_DELAY_SECONDS = float(os.environ.get("MBWAY_SANDBOX_DELAY_SECONDS", "3"))
+SESSION_PLANS = {
+    "5min": {"label": "5 minutos", "amount": 1},
+    "30min": {"label": "30 minutos", "amount": 5},
+    "60min": {"label": "1 hora", "amount": 49},
+}
+CHECKINS = {}
 
 
 def load_system_prompt() -> str:
@@ -25,16 +36,17 @@ def load_system_prompt() -> str:
     )
 
 
-def onboarding_to_text(onboarding: dict) -> str:
+def plan_to_text(plan_key: str) -> str:
+    plan = SESSION_PLANS.get(plan_key)
+    if not plan:
+        raise ValueError("Plano de check-in invalido.")
+
     return (
-        "Dados do onboarding:\n"
-        f"- Primeiro nome: {onboarding.get('firstName', '').strip()}\n"
-        f"- Nome preferido: {onboarding.get('preferredName', '').strip() or 'Nao indicado'}\n"
-        f"- Faixa etaria: {onboarding.get('ageRange', '').strip()}\n"
-        f"- Intensidade emocional: {onboarding.get('distressLevel', '').strip()}\n"
-        f"- Motivo principal: {onboarding.get('reason', '').strip()}\n"
-        f"- Objetivo da conversa: {onboarding.get('goal', '').strip()}\n"
-        "Usa estes dados para acolhimento inicial, mas sem inventar informacao adicional."
+        "Dados do check-in:\n"
+        f"- Plano selecionado: {plan['label']}\n"
+        f"- Valor esperado: {plan['amount']} EUR\n"
+        "- O site nao recebeu automaticamente o numero do cliente nem a confirmacao final do pagamento.\n"
+        "Faz um acolhimento inicial generico, claro e breve."
     )
 
 
@@ -83,8 +95,22 @@ class AppHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(BASE_DIR), **kwargs)
 
+    def do_GET(self):
+        if self.path.startswith("/api/checkin/status"):
+            try:
+                checkin_id = self._parse_checkin_id()
+                checkin = CHECKINS.get(checkin_id)
+                if not checkin:
+                    raise ValueError("Check-in nao encontrado.")
+                self._send_json(HTTPStatus.OK, self._serialize_checkin(checkin))
+            except Exception as exc:  # noqa: BLE001
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        super().do_GET()
+
     def do_POST(self):
-        if self.path not in {"/api/session/start", "/api/chat"}:
+        if self.path not in {"/api/checkin", "/api/session/start", "/api/chat"}:
             self.send_error(HTTPStatus.NOT_FOUND, "Endpoint nao encontrado.")
             return
 
@@ -93,6 +119,10 @@ class AppHandler(SimpleHTTPRequestHandler):
             raw_body = self.rfile.read(content_length).decode("utf-8")
             data = json.loads(raw_body or "{}")
 
+            if self.path == "/api/checkin":
+                response_payload = self._build_checkin_payload(data)
+                self._send_json(HTTPStatus.OK, response_payload)
+                return
             if self.path == "/api/session/start":
                 payload = self._build_start_payload(data)
             else:
@@ -110,18 +140,74 @@ class AppHandler(SimpleHTTPRequestHandler):
         except Exception as exc:  # noqa: BLE001
             self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
 
-    def _build_start_payload(self, data: dict) -> dict:
-        onboarding = data.get("onboarding") or {}
-        first_name = onboarding.get("firstName", "").strip()
-        reason = onboarding.get("reason", "").strip()
-        goal = onboarding.get("goal", "").strip()
+    def _build_checkin_payload(self, data: dict) -> dict:
+        plan_key = (data.get("plan") or "").strip()
+        plan = SESSION_PLANS.get(plan_key)
+        if not plan:
+            raise ValueError("Plano de check-in invalido.")
 
-        if not first_name or not reason or not goal:
-            raise ValueError("O onboarding precisa de nome, motivo e objetivo.")
+        checkin_id = str(uuid.uuid4())
+        created_at = time.time()
+        checkin = {
+            "id": checkin_id,
+            "plan_key": plan_key,
+            "amount": plan["amount"],
+            "label": plan["label"],
+            "created_at": created_at,
+            "authorized_at": created_at + MBWAY_SANDBOX_DELAY_SECONDS,
+            "status_code": "PENDING",
+        }
+        CHECKINS[checkin_id] = checkin
+
+        payload = self._serialize_checkin(checkin)
+        payload["checkin_id"] = checkin_id
+
+        if MBWAY_MODE == "deeplink":
+            payload["payment_url"] = f"mbway://send?phone={MBWAY_PHONE}&amount={plan['amount']}"
+            payload["payment_note"] = (
+                "Foi aberto o pedido MB WAY no dispositivo. O site aguarda a autorizacao."
+            )
+        elif MBWAY_MODE == "sibs_sandbox":
+            payload["payment_note"] = (
+                "Modo preparado para SIBS sandbox. Falta implementar as credenciais e endpoints reais do portal."
+            )
+        else:
+            payload["payment_note"] = (
+                "Sandbox ativa: o pagamento de teste sera autorizado automaticamente em poucos segundos."
+            )
+
+        return payload
+
+    def _serialize_checkin(self, checkin: dict) -> dict:
+        status_code = self._current_checkin_status(checkin)
+        label = checkin["label"]
+        if status_code == "AUTHORIZED":
+            status = f"Pagamento MB WAY autorizado para o check-in de {label}."
+        else:
+            status = f"A aguardar autorizacao MB WAY para o check-in de {label}."
+
+        return {
+            "status_code": status_code,
+            "status": status,
+            "payment_note": "",
+        }
+
+    def _build_start_payload(self, data: dict) -> dict:
+        plan_key = (data.get("plan") or "").strip()
+        if plan_key not in SESSION_PLANS:
+            raise ValueError("Escolha primeiro um check-in valido.")
+        checkin_id = (data.get("checkin_id") or "").strip()
+        checkin = CHECKINS.get(checkin_id)
+        if not checkin:
+            raise ValueError("Check-in nao encontrado.")
+        if checkin["plan_key"] != plan_key:
+            raise ValueError("O check-in nao corresponde ao plano selecionado.")
+        if self._current_checkin_status(checkin) != "AUTHORIZED":
+            raise ValueError("O pagamento ainda nao foi autorizado.")
 
         initial_message = (
             "Inicia a sessao em portugues de Portugal. "
-            "Cumprimenta a pessoa pelo nome, faz acolhimento inicial e coloca uma primeira pergunta util."
+            "Faz acolhimento inicial, reconhece o check-in escolhido e coloca uma primeira pergunta util."
         )
 
         return {
@@ -133,7 +219,7 @@ class AppHandler(SimpleHTTPRequestHandler):
                     "content": [
                         {
                             "type": "input_text",
-                            "text": f"{onboarding_to_text(onboarding)}\n\nPedido inicial:\n{initial_message}",
+                            "text": f"{plan_to_text(plan_key)}\n\nPedido inicial:\n{initial_message}",
                         }
                     ],
                 }
@@ -160,13 +246,13 @@ class AppHandler(SimpleHTTPRequestHandler):
         if previous_response_id:
             payload["previous_response_id"] = previous_response_id
         else:
-            onboarding = data.get("onboarding") or {}
+            plan_key = (data.get("plan") or "").strip()
             payload["input"].insert(
                 0,
                 {
                     "role": "user",
                     "content": [
-                        {"type": "input_text", "text": onboarding_to_text(onboarding)}
+                        {"type": "input_text", "text": plan_to_text(plan_key)}
                     ],
                 },
             )
@@ -180,6 +266,18 @@ class AppHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def _current_checkin_status(self, checkin: dict) -> str:
+        if MBWAY_MODE == "mock" and time.time() >= checkin["authorized_at"]:
+            checkin["status_code"] = "AUTHORIZED"
+        return checkin["status_code"]
+
+    def _parse_checkin_id(self) -> str:
+        query = self.path.split("?", 1)[1] if "?" in self.path else ""
+        for chunk in query.split("&"):
+            if chunk.startswith("id="):
+                return chunk.split("=", 1)[1]
+        raise ValueError("Falta o identificador do check-in.")
 
 
 def run():
