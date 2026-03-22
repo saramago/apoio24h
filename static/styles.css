@@ -1,16 +1,17 @@
 :root {
-    --bg: #f6efe6;
+    --bg: #f5efe7;
     --bg-soft: #fbf7f1;
-    --card: rgba(255, 252, 247, 0.94);
-    --line: rgba(70, 53, 36, 0.12);
+    --card: rgba(255, 252, 247, 0.96);
+    --line: rgba(70, 53, 36, 0.1);
     --text: #1f2937;
     --muted: #566579;
     --accent: #c65e39;
     --accent-dark: #a04828;
+    --dark: #162033;
     --pink: #e13a8b;
     --green: #2dad42;
     --blue: #3177ea;
-    --shadow: 0 24px 60px rgba(117, 90, 60, 0.12);
+    --shadow: 0 22px 50px rgba(117, 90, 60, 0.1);
     --radius: 30px;
 }
 
@@ -43,7 +44,10 @@ body {
 }
 
 .hero,
+.example-card,
 .flow-card,
+.trust-card,
+.final-cta,
 .chat-panel,
 .notice {
     padding: 28px;
@@ -73,11 +77,11 @@ p {
 }
 
 h1 {
-    font-size: clamp(2.5rem, 6vw, 5rem);
-    line-height: 0.95;
+    font-size: clamp(2.7rem, 6.5vw, 5.4rem);
+    line-height: 0.9;
     letter-spacing: -0.04em;
-    max-width: 8ch;
-    margin-bottom: 18px;
+    max-width: 7ch;
+    margin-bottom: 14px;
 }
 
 h2 {
@@ -95,32 +99,46 @@ h2 {
 }
 
 .lede {
-    max-width: 48ch;
-    font-size: 1.1rem;
-    line-height: 1.7;
-    margin-bottom: 24px;
+    max-width: 34ch;
+    font-size: 1.25rem;
+    line-height: 1.45;
+    margin-bottom: 18px;
 }
 
-.hero-inline {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
+.hero-actions {
+    display: grid;
+    gap: 14px;
+    max-width: 420px;
 }
 
-.hero-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 10px 14px;
-    border-radius: 999px;
-    background: #fff8f0;
-    border: 1px solid var(--line);
-    font-weight: 700;
-    color: var(--accent-dark);
+.hero-note {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.5;
+    font-size: 0.98rem;
 }
 
 .hero-side {
     display: grid;
     gap: 16px;
+}
+
+.primary-cta {
+    border: none;
+    border-radius: 18px;
+    padding: 18px 22px;
+    font: inherit;
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: #fffdf9;
+    background: linear-gradient(135deg, var(--accent), #d9774f);
+    box-shadow: 0 16px 34px rgba(198, 94, 57, 0.24);
+    cursor: pointer;
+}
+
+.primary-cta.large {
+    width: 100%;
+    max-width: 320px;
 }
 
 .info-box {
@@ -154,9 +172,36 @@ h2 {
     margin-bottom: 22px;
 }
 
+.section-head.stacked {
+    align-items: start;
+}
+
 .section-copy {
     max-width: 30ch;
     line-height: 1.6;
+}
+
+.example-chat {
+    display: grid;
+    gap: 14px;
+}
+
+.example-message {
+    max-width: 100%;
+    margin: 0;
+}
+
+.message-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.example-message p:last-child {
+    margin-bottom: 0;
 }
 
 .phone-field {
@@ -211,6 +256,11 @@ h2 {
     transform: translateY(-2px);
 }
 
+.plan-card-focus {
+    transform: translateY(-4px);
+    box-shadow: 0 0 0 4px rgba(198, 94, 57, 0.18), 0 18px 34px rgba(50, 45, 40, 0.18);
+}
+
 .plan-card:disabled {
     opacity: 0.72;
     cursor: wait;
@@ -242,7 +292,7 @@ h2 {
 }
 
 .plan-card strong {
-    font-size: 1.7rem;
+    font-size: 1.58rem;
     line-height: 1.02;
 }
 
@@ -262,6 +312,34 @@ h2 {
     border-radius: 22px;
     padding: 18px;
     background: rgba(255, 255, 255, 0.72);
+}
+
+.trust-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.trust-item {
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.trust-item h2 {
+    font-size: clamp(1.4rem, 2.4vw, 2rem);
+}
+
+.final-cta {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    align-items: center;
+}
+
+.final-cta-copy {
+    max-width: 36rem;
 }
 
 .chat-log {
@@ -346,6 +424,7 @@ code {
 @media (max-width: 900px) {
     .hero-grid,
     .plans-grid,
+    .trust-grid,
     .section-head,
     .chat-actions {
         grid-template-columns: 1fr;
@@ -356,6 +435,11 @@ code {
     .section-copy {
         max-width: none;
     }
+
+    .final-cta {
+        flex-direction: column;
+        align-items: stretch;
+    }
 }
 
 @media (max-width: 640px) {
@@ -365,17 +449,24 @@ code {
     }
 
     .hero,
+    .example-card,
     .flow-card,
+    .trust-card,
+    .final-cta,
     .chat-panel,
     .notice {
         padding: 20px;
     }
 
     h1 {
-        max-width: 9ch;
+        max-width: 7.5ch;
     }
 
     .plan-card {
         min-height: 150px;
+    }
+
+    .primary-cta.large {
+        max-width: none;
     }
 }

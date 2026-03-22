@@ -45,9 +45,9 @@ SIBS_TERMINAL_ID = os.environ.get("SIBS_TERMINAL_ID", "").strip()
 SIBS_CHANNEL = os.environ.get("SIBS_CHANNEL", "web").strip() or "web"
 SIBS_BASE_URL = os.environ.get("SIBS_BASE_URL", "https://sandbox.sibspayments.com").strip()
 SESSION_PLANS = {
-    "5min": {"label": "desbloqueio rapido", "amount": 1},
-    "30min": {"label": "clareza 10 minutos", "amount": 3},
-    "60min": {"label": "reset do dia", "amount": 7},
+    "5min": {"label": "Decidir agora", "amount": 1},
+    "30min": {"label": "Organizar um problema", "amount": 3},
+    "60min": {"label": "Clarificar o dia", "amount": 7},
 }
 CHECKINS = {}
 

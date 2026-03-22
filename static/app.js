@@ -18,7 +18,31 @@ const chatLog = document.querySelector("#chat-log");
 const chatForm = document.querySelector("#chat-form");
 const chatInput = document.querySelector("#chat-input");
 const chatHelper = document.querySelector("#chat-helper");
+const jumpButtons = document.querySelectorAll("[data-jump-plan]");
 let statusPollTimer = null;
+
+jumpButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+        const plan = button.dataset.jumpPlan;
+        const targetButton = document.querySelector(`.session-button[data-plan="${plan}"]`);
+        const purchaseSection = document.querySelector("#purchase");
+
+        if (purchaseSection) {
+            purchaseSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+
+        if (targetButton) {
+            targetButton.classList.add("plan-card-focus");
+            window.setTimeout(() => {
+                targetButton.classList.remove("plan-card-focus");
+            }, 1800);
+        }
+
+        window.setTimeout(() => {
+            phoneInput.focus();
+        }, 250);
+    });
+});
 
 sessionButtons.forEach((button) => {
     button.addEventListener("click", async () => {

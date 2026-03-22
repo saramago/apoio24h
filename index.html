@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apoio 24H - Clareza Imediata Quando Mais Precisa</title>
+    <title>Resolver isto agora</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -12,29 +12,23 @@
 <body>
     <main class="page-shell">
         <section class="hero card">
-            <p class="eyebrow">Apoio 24H</p>
             <div class="hero-grid">
                 <div class="hero-copy">
-                    <h1>Clareza imediata quando mais precisa.</h1>
-                    <p class="lede">
-                        Se algo lhe esta a pesar, o <strong>Apoio 24H</strong> ajuda a organizar o que esta a sentir
-                        em poucos minutos. Escolha o tempo de que necessita, introduza o numero MB WAY, autorize o
-                        pagamento e inicie uma conversa simples, clara e adaptada ao momento em que esta.
-                    </p>
-                    <div class="hero-inline">
-                        <span class="hero-pill">MB WAY</span>
-                        <span class="hero-pill">Assistente</span>
-                        <span class="hero-pill">Portugal</span>
+                    <p class="eyebrow">Resolver em minutos</p>
+                    <h1>Tens uma decisao para tomar hoje e nao consegues decidir?</h1>
+                    <p class="lede">Em 3 minutos sais com uma decisao simples ou proximos passos claros.</p>
+                    <div class="hero-actions">
+                        <button type="button" class="primary-cta" data-jump-plan="5min">Resolver isto agora por 1€</button>
+                        <p class="hero-note">Escreves o problema, recebes uma resposta direta e comecas logo.</p>
                     </div>
                 </div>
                 <div class="hero-side">
                     <div class="info-box soft">
                         <p class="info-title">Como funciona</p>
                         <ol class="steps">
-                            <li>Escolher o formato.</li>
-                            <li>Introduzir o numero MB WAY.</li>
-                            <li>Autorizar o pagamento.</li>
-                            <li>Iniciar a conversa automaticamente.</li>
+                            <li>Escreves o problema.</li>
+                            <li>Organizamos em pontos claros.</li>
+                            <li>Sais com uma decisao ou proximo passo.</li>
                         </ol>
                     </div>
                     <div class="info-box">
@@ -45,36 +39,61 @@
             </div>
         </section>
 
-        <section class="card flow-card">
-            <div class="section-head">
+        <section class="card example-card">
+            <div class="section-head stacked">
                 <div>
-                    <p class="eyebrow">Passo 1</p>
-                    <h2>Escolher formato e dar autorizacao</h2>
+                    <p class="eyebrow">Exemplo real</p>
+                    <h2>Ves logo o que recebes</h2>
                 </div>
-                <p class="section-copy">Em poucos minutos, pode tirar isto da cabeca e sair com um proximo passo mais claro.</p>
+                <p class="section-copy">Sem conversa vaga. Entras com um problema e sais com uma resposta utilizavel.</p>
+            </div>
+
+            <div class="example-chat">
+                <article class="message user example-message">
+                    <span class="message-label">Utilizador</span>
+                    <p>Tenho de decidir se aceito um novo trabalho.</p>
+                </article>
+                <article class="message assistant example-message">
+                    <span class="message-label">Sistema</span>
+                    <p>Vamos simplificar:</p>
+                    <p>1. O que ganhas.</p>
+                    <p>2. O que perdes.</p>
+                    <p>3. O que mais pesa hoje.</p>
+                    <p>Com base nisso, a decisao mais alinhada e pedir 24 horas para responder e comparar as 2 opcoes por escrito.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="card flow-card" id="purchase">
+            <div class="section-head stacked">
+                <div>
+                    <p class="eyebrow">Escolher e pagar</p>
+                    <h2>Escolhe um formato e comeca</h2>
+                </div>
+                <p class="section-copy">Uma unica acao: pagar e abrir a conversa.</p>
             </div>
 
             <form id="checkin-form" class="checkin-form">
                 <label class="phone-field">
-                    <span>Insira seu numero de telemovel com MB WAY</span>
+                    <span>Insira o seu numero de telemovel com MB WAY</span>
                     <input id="phone-input" name="customer_phone" type="tel" placeholder="Ex.: 919999999" required>
                 </label>
 
                 <div class="plans-grid" id="session-buttons">
                     <button type="button" class="plan-card plan-pink session-button" data-plan="5min">
-                        <span class="plan-tag">1 EUR</span>
-                        <strong>Desbloqueio rapido</strong>
-                        <small>Uma interacao estruturada com saida clara.</small>
+                        <span class="plan-tag">1€</span>
+                        <strong>Decidir agora</strong>
+                        <small>1 problema -> 1 decisao simples.</small>
                     </button>
                     <button type="button" class="plan-card plan-green session-button" data-plan="30min">
-                        <span class="plan-tag">3 EUR</span>
-                        <strong>Clareza 10 minutos</strong>
-                        <small>Dois a tres ciclos curtos para organizar o que pesa.</small>
+                        <span class="plan-tag">3€</span>
+                        <strong>Organizar um problema</strong>
+                        <small>2 a 3 ciclos -> mais estrutura.</small>
                     </button>
                     <button type="button" class="plan-card plan-blue session-button" data-plan="60min">
-                        <span class="plan-tag">7 EUR</span>
-                        <strong>Reset do dia</strong>
-                        <small>Mais espaco para ordenar ideias e sair com um plano simples.</small>
+                        <span class="plan-tag">7€</span>
+                        <strong>Clarificar o dia</strong>
+                        <small>Varios pontos -> plano simples.</small>
                     </button>
                 </div>
             </form>
@@ -85,24 +104,45 @@
             </div>
         </section>
 
-        <section id="chat-panel" class="card chat-panel hidden">
-            <div class="section-head">
-                <div>
-                    <p class="eyebrow">Passo 2</p>
-                    <h2>Conversa guiada</h2>
+        <section class="card trust-card">
+            <div class="trust-grid">
+                <div class="trust-item">
+                    <p class="eyebrow">Sem complicar</p>
+                    <h2>Nao resolve? Nao pagas novamente. Simples.</h2>
                 </div>
-                <p class="section-copy">A sessao arranca assim que o pagamento fica autorizado.</p>
+                <div class="trust-item">
+                    <p class="eyebrow">Privacidade</p>
+                    <h2>Nao guardamos conversas pessoais.</h2>
+                </div>
+            </div>
+        </section>
+
+        <section class="card final-cta">
+            <div class="final-cta-copy">
+                <p class="eyebrow">Ultimo passo</p>
+                <h2>Se isto esta na tua cabeca agora, resolve ja.</h2>
+            </div>
+            <button type="button" class="primary-cta large" data-jump-plan="5min">Comecar por 1€</button>
+        </section>
+
+        <section id="chat-panel" class="card chat-panel hidden">
+            <div class="section-head stacked">
+                <div>
+                    <p class="eyebrow">Conversa</p>
+                    <h2>Escreve o problema</h2>
+                </div>
+                <p class="section-copy">O chat abre automaticamente assim que o pagamento fica autorizado.</p>
             </div>
 
             <div id="chat-log" class="chat-log" aria-live="polite"></div>
 
             <form id="chat-form" class="chat-form">
-                <textarea id="chat-input" name="message" rows="4" placeholder="Escreva aqui o que esta a sentir..." required></textarea>
+                <textarea id="chat-input" name="message" rows="4" placeholder="Escreve aqui o problema concreto..." required></textarea>
                 <div class="chat-actions">
                     <p class="small-text" id="chat-helper">
-                        Em modo `mock`, o pagamento e autorizado automaticamente para testes.
+                        Em modo mock, o pagamento e autorizado automaticamente para testes.
                     </p>
-                    <button type="submit" class="send-button">Enviar mensagem</button>
+                    <button type="submit" class="send-button">Enviar</button>
                 </div>
             </form>
         </section>
@@ -110,8 +150,7 @@
         <section class="card notice">
             <p class="eyebrow">Aviso importante</p>
             <p>
-                Este prototipo destina-se a clareza imediata e apoio conversacional. Nao substitui psicoterapia,
-                diagnostico clinico nem resposta de emergencia.
+                Este servico nao substitui psicoterapia, diagnostico clinico nem resposta de emergencia.
             </p>
         </section>
     </main>
