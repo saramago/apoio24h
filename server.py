@@ -222,6 +222,10 @@ class AppHandler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(BASE_DIR), **kwargs)
 
     def do_GET(self):
+        if self.path == "/healthz":
+            self._send_json(HTTPStatus.OK, {"status": "ok"})
+            return
+
         if self.path.startswith("/api/checkin/status"):
             try:
                 checkin_id = self._parse_checkin_id()

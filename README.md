@@ -54,6 +54,23 @@ python3 server.py
 http://localhost:8000
 ```
 
+## Deploy simples
+
+O projeto pode ser publicado como um unico servico Python no Render, servindo frontend e API ao mesmo tempo.
+
+Ficheiro incluído:
+
+- `render.yaml`
+
+No Render, define as env vars reais:
+
+- `OPENAI_API_KEY`
+- `MBWAY_MODE`
+- `SIBS_CLIENT_ID`
+- `SIBS_CLIENT_SECRET`
+- `SIBS_BEARER_TOKEN`
+- `SIBS_TERMINAL_ID`
+
 ## Personalizar o comportamento
 
 Edita `prompts/advisor_system.txt` com o teu prompt advisory. O servidor lê este ficheiro a cada pedido, por isso podes ajustar o texto e voltar a testar sem recompilar nada.

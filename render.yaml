@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: apoio24h
+    runtime: python
+    plan: free
+    buildCommand: ""
+    startCommand: python3 server.py
+    healthCheckPath: /healthz
+    envVars:
+      - key: OPENAI_MODEL
+        value: gpt-4.1-mini
+      - key: MBWAY_MODE
+        value: mock
