@@ -8,6 +8,8 @@ const state = {
 };
 
 const sessionButtons = document.querySelectorAll(".session-button");
+const checkinForm = document.querySelector("#checkin-form");
+const phoneInput = document.querySelector("#phone-input");
 const checkinPanel = document.querySelector("#checkin-panel");
 const chatPanel = document.querySelector("#chat-panel");
 const statusText = document.querySelector("#status-text");
@@ -15,6 +17,7 @@ const paymentNote = document.querySelector("#payment-note");
 const chatLog = document.querySelector("#chat-log");
 const chatForm = document.querySelector("#chat-form");
 const chatInput = document.querySelector("#chat-input");
+const chatHelper = document.querySelector("#chat-helper");
 let statusPollTimer = null;
 
 sessionButtons.forEach((button) => {
@@ -23,42 +26,47 @@ sessionButtons.forEach((button) => {
             return;
         }
 
+        const enteredPhone = phoneInput.value.trim();
+        if (!enteredPhone) {
+            phoneInput.focus();
+            revealStatus("Indique primeiro o numero MB WAY do cliente.");
+            return;
+        }
+
         state.plan = button.dataset.plan;
-        setBusy(true, "A preparar o check-in...");
-        checkinPanel.classList.remove("hidden");
-        chatPanel.classList.add("hidden");
+        state.customerPhone = enteredPhone;
         state.sessionStarted = false;
         state.previousResponseId = null;
         state.checkinId = null;
-        state.customerPhone = null;
         chatLog.innerHTML = "";
+        chatPanel.classList.add("hidden");
         clearStatusPoll();
+        setBusy(true, "A preparar o check-in...");
+        revealStatus();
 
         try {
-            const phoneInput = window.prompt("Introduza o numero MB WAY do cliente (ex.: 919999999):", "");
-            if (phoneInput === null) {
-                setBusy(false, "Check-in cancelado.");
-                return;
-            }
-
-            state.customerPhone = phoneInput.trim();
             const response = await fetch("/api/checkin", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ plan: state.plan, customer_phone: state.customerPhone }),
+                body: JSON.stringify({
+                    plan: state.plan,
+                    customer_phone: state.customerPhone,
+                }),
             });
 
             const payload = await readJsonResponse(response);
             if (!response.ok) {
-                throw new Error(payload.error || "Não foi possível iniciar o check-in.");
+                throw new Error(payload.error || "Nao foi possivel iniciar o check-in.");
             }
 
             state.checkinId = payload.checkin_id || null;
-            paymentNote.textContent = payload.payment_note;
-            statusText.textContent = payload.status;
+            paymentNote.textContent = payload.payment_note || "";
+            statusText.textContent = payload.status || "Check-in criado.";
+
             if (payload.payment_url && payload.payment_url.startsWith("mbway://")) {
                 window.location.href = payload.payment_url;
             }
+
             startStatusPolling();
         } catch (error) {
             paymentNote.textContent = "";
@@ -132,21 +140,29 @@ async function startConversation() {
 
         const payload = await readJsonResponse(response);
         if (!response.ok) {
-            throw new Error(payload.error || "Não foi possível iniciar a conversa.");
+            throw new Error(payload.error || "Nao foi possivel iniciar a conversa.");
         }
 
         state.previousResponseId = payload.response_id || null;
         state.sessionStarted = true;
         clearStatusPoll();
         chatPanel.classList.remove("hidden");
+        chatPanel.scrollIntoView({ behavior: "smooth", block: "start" });
         appendMessage("assistant", payload.message);
         statusText.textContent = "Conversa iniciada.";
+        chatInput.focus();
     } catch (error) {
         appendMessage("system", error.message);
         statusText.textContent = error.message;
     } finally {
         setBusy(false);
-        chatInput.focus();
+    }
+}
+
+function revealStatus(message) {
+    checkinPanel.classList.remove("hidden");
+    if (message) {
+        statusText.textContent = message;
     }
 }
 
@@ -176,13 +192,13 @@ async function checkCheckinStatus() {
         const response = await fetch(`/api/checkin/status?id=${encodeURIComponent(state.checkinId)}`);
         const payload = await readJsonResponse(response);
         if (!response.ok) {
-            throw new Error(payload.error || "Não foi possível validar o pagamento.");
+            throw new Error(payload.error || "Nao foi possivel validar o pagamento.");
         }
 
         statusText.textContent = payload.status;
         paymentNote.textContent = payload.payment_note || paymentNote.textContent;
 
-        if (payload.status_code === "AUTHORIZED") {
+        if (payload.status_code === "AUTHORIZED" || payload.status_code === "Success") {
             await startConversation();
         }
     } catch (error) {
@@ -204,6 +220,7 @@ function setBusy(value, message) {
     sessionButtons.forEach((button) => {
         button.disabled = value;
     });
+    phoneInput.disabled = value;
     chatInput.disabled = value || !state.sessionStarted;
     chatForm.querySelector("button[type='submit']").disabled = value || !state.sessionStarted;
     if (message) {
@@ -218,7 +235,7 @@ async function readJsonResponse(response) {
     if (!contentType.includes("application/json")) {
         if (rawText.includes("<html")) {
             throw new Error(
-                "O site foi aberto sem backend ativo. Inicie o server.py localmente ou publique tambem a API."
+                "O frontend foi aberto sem backend ativo. Execute o server.py para usar check-in, pagamento e ChatGPT."
             );
         }
         throw new Error("A resposta do servidor nao veio em JSON.");
@@ -230,3 +247,9 @@ async function readJsonResponse(response) {
         throw new Error("O servidor devolveu JSON invalido.");
     }
 }
+
+checkinForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+});
+
+chatHelper.textContent = "Em modo mock, o pagamento e autorizado automaticamente para testes. Com OPENAI_API_KEY ativa, o chat arranca logo depois.";

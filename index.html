@@ -4,51 +4,116 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apoio 24H - Apoio Psicológico a Qualquer Hora!</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Apoio 24H</h1>
-        <h2>Apoio Psicológico a Qualquer Hora!</h2>
-        <p>
-            Está a sentir-se sobrecarregado, ansioso ou sem direção? O <strong>Apoio 24H</strong> está aqui para escutá-lo.
-            Escolha o check-in pretendido, autorize o pagamento no MB WAY e inicie a conversa.
-        </p>
-        <p><strong>Pagamento via MB WAY:</strong></p>
-        <p>O pedido de pagamento será enviado para o número <strong>912606050</strong>.</p>
+    <main class="page-shell">
+        <section class="hero card">
+            <p class="eyebrow">Apoio 24H</p>
+            <div class="hero-grid">
+                <div class="hero-copy">
+                    <h1>Conversa guiada com IA para apoio emocional.</h1>
+                    <p class="lede">
+                        Escolha o check-in pretendido, introduza o numero MB WAY, autorize o pagamento
+                        e inicie a conversa com o assistente configurado pelos teus prompts.
+                    </p>
+                    <div class="hero-inline">
+                        <span class="hero-pill">MB WAY</span>
+                        <span class="hero-pill">ChatGPT</span>
+                        <span class="hero-pill">Portugal</span>
+                    </div>
+                </div>
+                <div class="hero-side">
+                    <div class="info-box soft">
+                        <p class="info-title">Como funciona</p>
+                        <ol class="steps">
+                            <li>Escolher o check-in.</li>
+                            <li>Introduzir o numero MB WAY.</li>
+                            <li>Autorizar o pagamento.</li>
+                            <li>Iniciar a conversa automaticamente.</li>
+                        </ol>
+                    </div>
+                    <div class="info-box">
+                        <p class="info-title">Pagamento</p>
+                        <p>O pedido sera enviado para o numero <strong>912606050</strong>.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-        <div class="button-container" id="session-buttons">
-            <button class="button button-1 session-button" data-plan="5min">Check-in 1€<br>(5 Minutos)</button>
-            <button class="button button-3 session-button" data-plan="30min">Check-in 5€<br>(30 Minutos)</button>
-            <button class="button button-99 session-button" data-plan="60min">Check-in 49€<br>(1 Hora)</button>
-        </div>
+        <section class="card flow-card">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow">Passo 1</p>
+                    <h2>Escolher check-in e pagar</h2>
+                </div>
+                <p class="section-copy">Mistura o visual premium com o fluxo simples de sessao curta, media ou longa.</p>
+            </div>
 
-        <div id="checkin-panel" class="hidden">
-            <div class="status-box">
+            <form id="checkin-form" class="checkin-form">
+                <label class="phone-field">
+                    <span>Numero MB WAY do cliente</span>
+                    <input id="phone-input" name="customer_phone" type="tel" placeholder="Ex.: 919999999" required>
+                </label>
+
+                <div class="plans-grid" id="session-buttons">
+                    <button type="button" class="plan-card plan-pink session-button" data-plan="5min">
+                        <span class="plan-tag">1 EUR</span>
+                        <strong>Check-in 5 minutos</strong>
+                        <small>Entrada rapida para apoio imediato.</small>
+                    </button>
+                    <button type="button" class="plan-card plan-green session-button" data-plan="30min">
+                        <span class="plan-tag">5 EUR</span>
+                        <strong>Check-in 30 minutos</strong>
+                        <small>Mais contexto, mais orientacao, mais calma.</small>
+                    </button>
+                    <button type="button" class="plan-card plan-blue session-button" data-plan="60min">
+                        <span class="plan-tag">49 EUR</span>
+                        <strong>Check-in 1 hora</strong>
+                        <small>Sessao longa com maior profundidade.</small>
+                    </button>
+                </div>
+            </form>
+
+            <div id="checkin-panel" class="status-box hidden">
                 <p id="status-text">Escolha um check-in para começar.</p>
                 <p id="payment-note" class="small-text"></p>
             </div>
-        </div>
+        </section>
 
-        <div id="chat-panel" class="chat-panel hidden">
+        <section id="chat-panel" class="card chat-panel hidden">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow">Passo 2</p>
+                    <h2>Conversa guiada</h2>
+                </div>
+                <p class="section-copy">A sessao arranca assim que o pagamento fica autorizado.</p>
+            </div>
+
             <div id="chat-log" class="chat-log" aria-live="polite"></div>
+
             <form id="chat-form" class="chat-form">
-                <textarea id="chat-input" name="message" rows="4" placeholder="Escreva aqui o que está a sentir..." required></textarea>
+                <textarea id="chat-input" name="message" rows="4" placeholder="Escreva aqui o que esta a sentir..." required></textarea>
                 <div class="chat-actions">
-                    <p class="small-text">
-                        Sandbox ativo: o pagamento MB WAY e autorizado automaticamente para efeitos de teste.
+                    <p class="small-text" id="chat-helper">
+                        Em modo `mock`, o pagamento e autorizado automaticamente para testes.
                     </p>
-                    <button type="submit" class="button button-99 chat-submit">Enviar mensagem</button>
+                    <button type="submit" class="send-button">Enviar mensagem</button>
                 </div>
             </form>
-        </div>
+        </section>
 
-        <div class="notice">
+        <section class="card notice">
+            <p class="eyebrow">Aviso importante</p>
             <p>
-                Este protótipo destina-se a apoio conversacional. Não substitui psicoterapia, diagnóstico clínico nem resposta de emergência.
+                Este prototipo destina-se a apoio conversacional. Nao substitui psicoterapia,
+                diagnostico clinico nem resposta de emergencia.
             </p>
-        </div>
-    </div>
+        </section>
+    </main>
 
     <script src="/static/app.js"></script>
 </body>
