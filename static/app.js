@@ -258,7 +258,7 @@ chatHelper.textContent = "Em modo mock, o pagamento e autorizado automaticamente
 
 function normalizeStartupError(message) {
     if (message.includes("insufficient_quota") || message.includes("HTTP 429")) {
-        return "A conversa nao arrancou porque a chave da OpenAI esta sem quota ou sem faturacao ativa. Atualize a OPENAI_API_KEY no Render e tente novamente.";
+        return "De momento, nao foi possivel iniciar a conversa. Tente novamente dentro de instantes.";
     }
     return message;
 }
