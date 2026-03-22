@@ -232,14 +232,14 @@ async function readJsonResponse(response) {
     const contentType = response.headers.get("content-type") || "";
     const rawText = await response.text();
 
-    if (!contentType.includes("application/json")) {
-        if (rawText.includes("<html")) {
-            throw new Error(
-                "O frontend foi aberto sem backend ativo. Execute o server.py para usar check-in, pagamento e ChatGPT."
-            );
+        if (!contentType.includes("application/json")) {
+            if (rawText.includes("<html")) {
+                throw new Error(
+                "O frontend foi aberto sem backend ativo. Execute o server.py para usar check-in, pagamento e conversa com IA."
+                );
+            }
+            throw new Error("A resposta do servidor nao veio em JSON.");
         }
-        throw new Error("A resposta do servidor nao veio em JSON.");
-    }
 
     try {
         return JSON.parse(rawText);
@@ -252,4 +252,4 @@ checkinForm.addEventListener("submit", (event) => {
     event.preventDefault();
 });
 
-chatHelper.textContent = "Em modo mock, o pagamento e autorizado automaticamente para testes. Com OPENAI_API_KEY ativa, o chat arranca logo depois.";
+chatHelper.textContent = "Em modo mock, o pagamento e autorizado automaticamente para testes. Com OPENAI_API_KEY ativa, a conversa arranca logo depois.";
