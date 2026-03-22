@@ -48,7 +48,7 @@ sessionButtons.forEach((button) => {
                 body: JSON.stringify({ plan: state.plan, customer_phone: state.customerPhone }),
             });
 
-            const payload = await response.json();
+            const payload = await readJsonResponse(response);
             if (!response.ok) {
                 throw new Error(payload.error || "Não foi possível iniciar o check-in.");
             }
@@ -95,7 +95,7 @@ chatForm.addEventListener("submit", async (event) => {
             }),
         });
 
-        const payload = await response.json();
+        const payload = await readJsonResponse(response);
         if (!response.ok) {
             throw new Error(payload.error || "Erro ao obter resposta.");
         }
@@ -130,7 +130,7 @@ async function startConversation() {
             }),
         });
 
-        const payload = await response.json();
+        const payload = await readJsonResponse(response);
         if (!response.ok) {
             throw new Error(payload.error || "Não foi possível iniciar a conversa.");
         }
@@ -174,7 +174,7 @@ async function checkCheckinStatus() {
 
     try {
         const response = await fetch(`/api/checkin/status?id=${encodeURIComponent(state.checkinId)}`);
-        const payload = await response.json();
+        const payload = await readJsonResponse(response);
         if (!response.ok) {
             throw new Error(payload.error || "Não foi possível validar o pagamento.");
         }
@@ -208,5 +208,25 @@ function setBusy(value, message) {
     chatForm.querySelector("button[type='submit']").disabled = value || !state.sessionStarted;
     if (message) {
         statusText.textContent = message;
+    }
+}
+
+async function readJsonResponse(response) {
+    const contentType = response.headers.get("content-type") || "";
+    const rawText = await response.text();
+
+    if (!contentType.includes("application/json")) {
+        if (rawText.includes("<html")) {
+            throw new Error(
+                "O site foi aberto sem backend ativo. Inicie o server.py localmente ou publique tambem a API."
+            );
+        }
+        throw new Error("A resposta do servidor nao veio em JSON.");
+    }
+
+    try {
+        return JSON.parse(rawText);
+    } catch (error) {
+        throw new Error("O servidor devolveu JSON invalido.");
     }
 }
