@@ -152,8 +152,10 @@ async function startConversation() {
         statusText.textContent = "Conversa iniciada.";
         chatInput.focus();
     } catch (error) {
-        appendMessage("system", error.message);
-        statusText.textContent = error.message;
+        clearStatusPoll();
+        const message = normalizeStartupError(error.message);
+        appendMessage("system", message);
+        statusText.textContent = message;
     } finally {
         setBusy(false);
     }
@@ -232,14 +234,14 @@ async function readJsonResponse(response) {
     const contentType = response.headers.get("content-type") || "";
     const rawText = await response.text();
 
-        if (!contentType.includes("application/json")) {
-            if (rawText.includes("<html")) {
-                throw new Error(
+    if (!contentType.includes("application/json")) {
+        if (rawText.includes("<html")) {
+            throw new Error(
                 "O frontend foi aberto sem backend ativo. Execute o server.py para usar check-in, pagamento e conversa com IA."
-                );
-            }
-            throw new Error("A resposta do servidor nao veio em JSON.");
+            );
         }
+        throw new Error("A resposta do servidor nao veio em JSON.");
+    }
 
     try {
         return JSON.parse(rawText);
@@ -253,3 +255,10 @@ checkinForm.addEventListener("submit", (event) => {
 });
 
 chatHelper.textContent = "Em modo mock, o pagamento e autorizado automaticamente para testes. Com OPENAI_API_KEY ativa, a conversa arranca logo depois.";
+
+function normalizeStartupError(message) {
+    if (message.includes("insufficient_quota") || message.includes("HTTP 429")) {
+        return "A conversa nao arrancou porque a chave da OpenAI esta sem quota ou sem faturacao ativa. Atualize a OPENAI_API_KEY no Render e tente novamente.";
+    }
+    return message;
+}
