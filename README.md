@@ -10,29 +10,37 @@ Apoio 24H com check-in por duracao, sandbox MB WAY e conversa via OpenAI API.
 
 ## Como arrancar
 
-1. Definir a chave da OpenAI:
+1. Criar um ficheiro `.env` local a partir do exemplo:
 
 ```bash
-export OPENAI_API_KEY="coloca-aqui-a-tua-chave"
+cp .env.example .env
 ```
 
-2. Opcionalmente escolher o modelo:
+2. Editar `.env` e preencher os segredos locais:
+
+- `OPENAI_API_KEY`
+- `SIBS_CLIENT_ID`
+- `SIBS_CLIENT_SECRET`
+- `SIBS_BEARER_TOKEN`
+- `SIBS_TERMINAL_ID`
+
+3. Carregar as variaveis no terminal:
 
 ```bash
-export OPENAI_MODEL="gpt-4.1-mini"
-```
-
-3. Opcionalmente configurar o modo MB WAY:
-
-```bash
-export MBWAY_MODE="mock"
+set -a
+source .env
+set +a
 ```
 
 Valores suportados:
 
 - `mock`: sandbox local. O pagamento e autorizado automaticamente apos alguns segundos.
 - `deeplink`: abre `mbway://send?...` no dispositivo.
-- `sibs_sandbox`: deixa a app preparada para futura integracao SIBS sandbox real.
+- `sibs_sandbox`: usa checkout real + MB WAY purchase + status query na sandbox SIBS.
+
+Para `sibs_sandbox`, define tambem:
+
+O fluxo real da SIBS pede o numero MB WAY do cliente no momento do check-in. O browser nao consegue descobrir esse numero automaticamente.
 
 4. Iniciar o servidor:
 
@@ -50,9 +58,19 @@ http://localhost:8000
 
 Edita `prompts/advisor_system.txt` com o teu prompt advisory. O servidor lê este ficheiro a cada pedido, por isso podes ajustar o texto e voltar a testar sem recompilar nada.
 
+## Seguranca de credenciais
+
+- `.env` esta ignorado pelo Git e nao deve ser publicado.
+- `.env.example` serve apenas de molde sem segredos reais.
+- Se uma chave aparecer em screenshot, chat, notas ou commits, roda-a imediatamente.
+
 ## Nota sobre a sandbox MB WAY
 
-O portal publico da SIBS confirma que existe registo em SANDBOX para testar as APIs, mas a documentacao tecnica detalhada e credenciais ficam atras do portal de developers. Por isso este repositório inclui uma sandbox local funcional (`MBWAY_MODE=mock`) e uma base para futura ligacao ao modo `sibs_sandbox`.
+Documentacao usada para o fluxo real:
+
+- `POST /payments` com `Authorization: Bearer ...`
+- `POST /payments/{transactionID}/mbway-id/purchase` com `Authorization: Digest {transactionSignature}`
+- `GET /payments/{transactionID}/status` com `Authorization: Bearer ...`
 
 ## Nota importante
 

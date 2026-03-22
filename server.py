@@ -4,19 +4,46 @@ import json
 import os
 import time
 import uuid
+from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
 BASE_DIR = Path(__file__).resolve().parent
 PROMPT_FILE = BASE_DIR / "prompts" / "advisor_system.txt"
+
+
+def load_dotenv() -> None:
+    env_path = BASE_DIR / ".env"
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip("'").strip('"')
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+load_dotenv()
+
 DEFAULT_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
 MBWAY_PHONE = os.environ.get("MBWAY_PHONE", "912606050")
 MBWAY_MODE = os.environ.get("MBWAY_MODE", "mock").strip().lower()
 MBWAY_SANDBOX_DELAY_SECONDS = float(os.environ.get("MBWAY_SANDBOX_DELAY_SECONDS", "3"))
+SIBS_CLIENT_ID = os.environ.get("SIBS_CLIENT_ID", "").strip()
+SIBS_BEARER_TOKEN = os.environ.get("SIBS_BEARER_TOKEN", "").strip()
+SIBS_TERMINAL_ID = os.environ.get("SIBS_TERMINAL_ID", "").strip()
+SIBS_CHANNEL = os.environ.get("SIBS_CHANNEL", "web").strip() or "web"
+SIBS_BASE_URL = os.environ.get("SIBS_BASE_URL", "https://sandbox.sibspayments.com").strip()
 SESSION_PLANS = {
     "5min": {"label": "5 minutos", "amount": 1},
     "30min": {"label": "30 minutos", "amount": 5},
@@ -66,6 +93,19 @@ def extract_text(response_json: dict) -> str:
     return "\n".join(chunk.strip() for chunk in chunks if chunk.strip())
 
 
+def format_customer_phone(phone: str) -> str:
+    digits = "".join(char for char in phone if char.isdigit())
+    if not digits:
+        raise ValueError("Indique um numero de telemovel valido.")
+    if digits.startswith("351") and len(digits) >= 12:
+        national = digits[3:]
+    elif len(digits) == 9:
+        national = digits
+    else:
+        raise ValueError("O numero MB WAY deve ter 9 digitos ou incluir o prefixo 351.")
+    return f"351#{national}"
+
+
 def call_openai(payload: dict) -> dict:
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
@@ -89,6 +129,92 @@ def call_openai(payload: dict) -> dict:
         raise RuntimeError(f"OpenAI devolveu erro HTTP {exc.code}: {body}") from exc
     except URLError as exc:
         raise RuntimeError(f"Nao foi possivel contactar a OpenAI: {exc.reason}") from exc
+
+
+def sibs_request(path: str, method: str = "GET", payload: dict | None = None, authorization: str | None = None) -> dict:
+    if not SIBS_CLIENT_ID:
+        raise RuntimeError("Defina SIBS_CLIENT_ID para usar a sandbox real da SIBS.")
+    if not authorization:
+        raise RuntimeError("Falta o header Authorization para a chamada SIBS.")
+
+    headers = {
+        "X-IBM-Client-Id": SIBS_CLIENT_ID,
+        "Authorization": authorization,
+        "Content-Type": "application/json",
+    }
+    request = Request(
+        f"{SIBS_BASE_URL}{path}",
+        data=json.dumps(payload).encode("utf-8") if payload is not None else None,
+        headers=headers,
+        method=method,
+    )
+
+    try:
+        with urlopen(request, timeout=90) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"SIBS devolveu erro HTTP {exc.code}: {body}") from exc
+    except URLError as exc:
+        raise RuntimeError(f"Nao foi possivel contactar a SIBS: {exc.reason}") from exc
+
+
+def create_sibs_checkout(plan_key: str) -> dict:
+    if not SIBS_BEARER_TOKEN:
+        raise RuntimeError("Defina SIBS_BEARER_TOKEN para usar a sandbox real da SIBS.")
+    if not SIBS_TERMINAL_ID:
+        raise RuntimeError("Defina SIBS_TERMINAL_ID para usar a sandbox real da SIBS.")
+
+    plan = SESSION_PLANS[plan_key]
+    now = datetime.now(timezone.utc)
+    merchant_transaction_id = f"apoio24h-{uuid.uuid4().hex[:20]}"
+    payload = {
+        "merchant": {
+            "terminalId": int(SIBS_TERMINAL_ID),
+            "channel": SIBS_CHANNEL,
+            "merchantTransactionId": merchant_transaction_id,
+        },
+        "transaction": {
+            "transactionTimestamp": now.isoformat().replace("+00:00", "Z"),
+            "description": f"Check-in Apoio24h {plan['label']}",
+            "moto": False,
+            "paymentType": "PURS",
+            "amount": {
+                "value": plan["amount"],
+                "currency": "EUR",
+            },
+            "paymentMethod": ["MBWAY"],
+        },
+    }
+
+    return sibs_request(
+        "/sibs/spg/v2/payments",
+        method="POST",
+        payload=payload,
+        authorization=f"Bearer {SIBS_BEARER_TOKEN}",
+    )
+
+
+def create_sibs_mbway_purchase(transaction_id: str, transaction_signature: str, customer_phone: str) -> dict:
+    payload = {
+        "customerPhone": format_customer_phone(customer_phone),
+    }
+    return sibs_request(
+        f"/sibs/spg/v2/payments/{transaction_id}/mbway-id/purchase",
+        method="POST",
+        payload=payload,
+        authorization=f"Digest {transaction_signature}",
+    )
+
+
+def get_sibs_payment_status(transaction_id: str) -> dict:
+    if not SIBS_BEARER_TOKEN:
+        raise RuntimeError("Defina SIBS_BEARER_TOKEN para consultar o estado na SIBS.")
+    return sibs_request(
+        f"/sibs/spg/v2/payments/{transaction_id}/status",
+        method="GET",
+        authorization=f"Bearer {SIBS_BEARER_TOKEN}",
+    )
 
 
 class AppHandler(SimpleHTTPRequestHandler):
@@ -145,6 +271,8 @@ class AppHandler(SimpleHTTPRequestHandler):
         plan = SESSION_PLANS.get(plan_key)
         if not plan:
             raise ValueError("Plano de check-in invalido.")
+        customer_phone = (data.get("customer_phone") or "").strip()
+        formatted_phone = format_customer_phone(customer_phone)
 
         checkin_id = str(uuid.uuid4())
         created_at = time.time()
@@ -153,25 +281,44 @@ class AppHandler(SimpleHTTPRequestHandler):
             "plan_key": plan_key,
             "amount": plan["amount"],
             "label": plan["label"],
+            "customer_phone": formatted_phone,
             "created_at": created_at,
             "authorized_at": created_at + MBWAY_SANDBOX_DELAY_SECONDS,
             "status_code": "PENDING",
+            "transaction_id": None,
+            "transaction_signature": None,
+            "merchant_transaction_id": None,
         }
-        CHECKINS[checkin_id] = checkin
 
         payload = self._serialize_checkin(checkin)
         payload["checkin_id"] = checkin_id
 
         if MBWAY_MODE == "deeplink":
+            CHECKINS[checkin_id] = checkin
             payload["payment_url"] = f"mbway://send?phone={MBWAY_PHONE}&amount={plan['amount']}"
             payload["payment_note"] = (
                 "Foi aberto o pedido MB WAY no dispositivo. O site aguarda a autorizacao."
             )
         elif MBWAY_MODE == "sibs_sandbox":
+            checkout = create_sibs_checkout(plan_key)
+            transaction_id = checkout.get("transactionID")
+            transaction_signature = checkout.get("transactionSignature")
+            merchant = checkout.get("merchant") or {}
+            if not transaction_id or not transaction_signature:
+                raise RuntimeError("A SIBS nao devolveu transactionID/transactionSignature no checkout.")
+            purchase = create_sibs_mbway_purchase(transaction_id, transaction_signature, customer_phone)
+            checkin["transaction_id"] = transaction_id
+            checkin["transaction_signature"] = transaction_signature
+            checkin["merchant_transaction_id"] = merchant.get("merchantTransactionId")
+            checkin["status_code"] = purchase.get("paymentStatus") or "PENDING"
+            CHECKINS[checkin_id] = checkin
+            payload = self._serialize_checkin(checkin)
+            payload["checkin_id"] = checkin_id
             payload["payment_note"] = (
-                "Modo preparado para SIBS sandbox. Falta implementar as credenciais e endpoints reais do portal."
+                "Pedido MB WAY enviado pela sandbox SIBS. O sistema vai validar o estado automaticamente."
             )
         else:
+            CHECKINS[checkin_id] = checkin
             payload["payment_note"] = (
                 "Sandbox ativa: o pagamento de teste sera autorizado automaticamente em poucos segundos."
             )
@@ -181,7 +328,7 @@ class AppHandler(SimpleHTTPRequestHandler):
     def _serialize_checkin(self, checkin: dict) -> dict:
         status_code = self._current_checkin_status(checkin)
         label = checkin["label"]
-        if status_code == "AUTHORIZED":
+        if status_code in {"AUTHORIZED", "Success"}:
             status = f"Pagamento MB WAY autorizado para o check-in de {label}."
         else:
             status = f"A aguardar autorizacao MB WAY para o check-in de {label}."
@@ -202,7 +349,7 @@ class AppHandler(SimpleHTTPRequestHandler):
             raise ValueError("Check-in nao encontrado.")
         if checkin["plan_key"] != plan_key:
             raise ValueError("O check-in nao corresponde ao plano selecionado.")
-        if self._current_checkin_status(checkin) != "AUTHORIZED":
+        if self._current_checkin_status(checkin) not in {"AUTHORIZED", "Success"}:
             raise ValueError("O pagamento ainda nao foi autorizado.")
 
         initial_message = (
@@ -270,13 +417,17 @@ class AppHandler(SimpleHTTPRequestHandler):
     def _current_checkin_status(self, checkin: dict) -> str:
         if MBWAY_MODE == "mock" and time.time() >= checkin["authorized_at"]:
             checkin["status_code"] = "AUTHORIZED"
+        elif MBWAY_MODE == "sibs_sandbox" and checkin.get("transaction_id"):
+            status_response = get_sibs_payment_status(checkin["transaction_id"])
+            checkin["status_code"] = status_response.get("paymentStatus") or checkin["status_code"]
         return checkin["status_code"]
 
     def _parse_checkin_id(self) -> str:
-        query = self.path.split("?", 1)[1] if "?" in self.path else ""
-        for chunk in query.split("&"):
-            if chunk.startswith("id="):
-                return chunk.split("=", 1)[1]
+        parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+        checkin_ids = params.get("id") or []
+        if checkin_ids:
+            return checkin_ids[0]
         raise ValueError("Falta o identificador do check-in.")
 
 

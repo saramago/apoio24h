@@ -1,6 +1,7 @@
 const state = {
     plan: null,
     checkinId: null,
+    customerPhone: null,
     previousResponseId: null,
     isBusy: false,
     sessionStarted: false,
@@ -29,14 +30,22 @@ sessionButtons.forEach((button) => {
         state.sessionStarted = false;
         state.previousResponseId = null;
         state.checkinId = null;
+        state.customerPhone = null;
         chatLog.innerHTML = "";
         clearStatusPoll();
 
         try {
+            const phoneInput = window.prompt("Introduza o numero MB WAY do cliente (ex.: 919999999):", "");
+            if (phoneInput === null) {
+                setBusy(false, "Check-in cancelado.");
+                return;
+            }
+
+            state.customerPhone = phoneInput.trim();
             const response = await fetch("/api/checkin", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ plan: state.plan }),
+                body: JSON.stringify({ plan: state.plan, customer_phone: state.customerPhone }),
             });
 
             const payload = await response.json();
@@ -114,7 +123,11 @@ async function startConversation() {
         const response = await fetch("/api/session/start", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ plan: state.plan, checkin_id: state.checkinId }),
+            body: JSON.stringify({
+                plan: state.plan,
+                checkin_id: state.checkinId,
+                customer_phone: state.customerPhone,
+            }),
         });
 
         const payload = await response.json();
