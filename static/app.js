@@ -29,7 +29,7 @@ sessionButtons.forEach((button) => {
         const enteredPhone = phoneInput.value.trim();
         if (!enteredPhone) {
             phoneInput.focus();
-            revealStatus("Indique primeiro o numero MB WAY do cliente.");
+            revealStatus("Indique primeiro o seu numero MB WAY.");
             return;
         }
 
@@ -41,7 +41,7 @@ sessionButtons.forEach((button) => {
         chatLog.innerHTML = "";
         chatPanel.classList.add("hidden");
         clearStatusPoll();
-        setBusy(true, "A preparar o check-in...");
+        setBusy(true, "A preparar o pedido...");
         revealStatus();
 
         try {
@@ -56,12 +56,12 @@ sessionButtons.forEach((button) => {
 
             const payload = await readJsonResponse(response);
             if (!response.ok) {
-                throw new Error(payload.error || "Nao foi possivel iniciar o check-in.");
+                throw new Error(payload.error || "Nao foi possivel iniciar o pedido.");
             }
 
             state.checkinId = payload.checkin_id || null;
             paymentNote.textContent = payload.payment_note || "";
-            statusText.textContent = payload.status || "Check-in criado.";
+            statusText.textContent = payload.status || "Pedido criado.";
 
             if (payload.payment_url && payload.payment_url.startsWith("mbway://")) {
                 window.location.href = payload.payment_url;
@@ -237,7 +237,7 @@ async function readJsonResponse(response) {
     if (!contentType.includes("application/json")) {
         if (rawText.includes("<html")) {
             throw new Error(
-                "O frontend foi aberto sem backend ativo. Execute o server.py para usar check-in, pagamento e conversa com IA."
+                "O frontend foi aberto sem backend ativo. Execute o server.py para usar o pedido, o pagamento e a conversa."
             );
         }
         throw new Error("A resposta do servidor nao veio em JSON.");

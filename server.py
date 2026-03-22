@@ -45,9 +45,9 @@ SIBS_TERMINAL_ID = os.environ.get("SIBS_TERMINAL_ID", "").strip()
 SIBS_CHANNEL = os.environ.get("SIBS_CHANNEL", "web").strip() or "web"
 SIBS_BASE_URL = os.environ.get("SIBS_BASE_URL", "https://sandbox.sibspayments.com").strip()
 SESSION_PLANS = {
-    "5min": {"label": "5 minutos", "amount": 1},
-    "30min": {"label": "30 minutos", "amount": 5},
-    "60min": {"label": "1 hora", "amount": 49},
+    "5min": {"label": "desbloqueio rapido", "amount": 1},
+    "30min": {"label": "clareza 10 minutos", "amount": 3},
+    "60min": {"label": "reset do dia", "amount": 7},
 }
 CHECKINS = {}
 
@@ -66,11 +66,11 @@ def load_system_prompt() -> str:
 def plan_to_text(plan_key: str) -> str:
     plan = SESSION_PLANS.get(plan_key)
     if not plan:
-        raise ValueError("Plano de check-in invalido.")
+        raise ValueError("Formato invalido.")
 
     return (
-        "Dados do check-in:\n"
-        f"- Plano selecionado: {plan['label']}\n"
+        "Dados da sessao:\n"
+        f"- Formato selecionado: {plan['label']}\n"
         f"- Valor esperado: {plan['amount']} EUR\n"
         "- O site nao recebeu automaticamente o numero do cliente nem a confirmacao final do pagamento.\n"
         "Faz um acolhimento inicial generico, claro e breve."
@@ -176,7 +176,7 @@ def create_sibs_checkout(plan_key: str) -> dict:
         },
         "transaction": {
             "transactionTimestamp": now.isoformat().replace("+00:00", "Z"),
-            "description": f"Check-in Apoio24h {plan['label']}",
+            "description": f"Sessao Apoio24h {plan['label']}",
             "moto": False,
             "paymentType": "PURS",
             "amount": {
@@ -231,7 +231,7 @@ class AppHandler(SimpleHTTPRequestHandler):
                 checkin_id = self._parse_checkin_id()
                 checkin = CHECKINS.get(checkin_id)
                 if not checkin:
-                    raise ValueError("Check-in nao encontrado.")
+                    raise ValueError("Pedido nao encontrado.")
                 self._send_json(HTTPStatus.OK, self._serialize_checkin(checkin))
             except Exception as exc:  # noqa: BLE001
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
@@ -274,7 +274,7 @@ class AppHandler(SimpleHTTPRequestHandler):
         plan_key = (data.get("plan") or "").strip()
         plan = SESSION_PLANS.get(plan_key)
         if not plan:
-            raise ValueError("Plano de check-in invalido.")
+            raise ValueError("Formato invalido.")
         customer_phone = (data.get("customer_phone") or "").strip()
         formatted_phone = format_customer_phone(customer_phone)
 
@@ -333,9 +333,9 @@ class AppHandler(SimpleHTTPRequestHandler):
         status_code = self._current_checkin_status(checkin)
         label = checkin["label"]
         if status_code in {"AUTHORIZED", "Success"}:
-            status = f"Pagamento MB WAY autorizado para o check-in de {label}."
+            status = f"Pagamento MB WAY autorizado para {label}."
         else:
-            status = f"A aguardar autorizacao MB WAY para o check-in de {label}."
+            status = f"A aguardar autorizacao MB WAY para {label}."
 
         return {
             "status_code": status_code,
@@ -346,19 +346,19 @@ class AppHandler(SimpleHTTPRequestHandler):
     def _build_start_payload(self, data: dict) -> dict:
         plan_key = (data.get("plan") or "").strip()
         if plan_key not in SESSION_PLANS:
-            raise ValueError("Escolha primeiro um check-in valido.")
+            raise ValueError("Escolha primeiro um formato valido.")
         checkin_id = (data.get("checkin_id") or "").strip()
         checkin = CHECKINS.get(checkin_id)
         if not checkin:
-            raise ValueError("Check-in nao encontrado.")
+            raise ValueError("Pedido nao encontrado.")
         if checkin["plan_key"] != plan_key:
-            raise ValueError("O check-in nao corresponde ao plano selecionado.")
+            raise ValueError("O pedido nao corresponde ao formato selecionado.")
         if self._current_checkin_status(checkin) not in {"AUTHORIZED", "Success"}:
             raise ValueError("O pagamento ainda nao foi autorizado.")
 
         initial_message = (
             "Inicia a sessao em portugues de Portugal. "
-            "Faz acolhimento inicial, reconhece o check-in escolhido e coloca uma primeira pergunta util."
+            "Faz acolhimento inicial, reconhece o formato escolhido e coloca uma primeira pergunta util."
         )
 
         return {
@@ -432,7 +432,7 @@ class AppHandler(SimpleHTTPRequestHandler):
         checkin_ids = params.get("id") or []
         if checkin_ids:
             return checkin_ids[0]
-        raise ValueError("Falta o identificador do check-in.")
+        raise ValueError("Falta o identificador do pedido.")
 
 
 def run():
