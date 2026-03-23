@@ -32,6 +32,8 @@ const locationButton = document.querySelector("#location-button");
 const locationText = document.querySelector("#location-text");
 const resultActions = document.querySelector("#result-actions");
 const resourcePanel = document.querySelector("#resource-panel");
+const resourceHeading = document.querySelector("#resource-heading");
+const resourceIntro = document.querySelector("#resource-intro");
 const resourceList = document.querySelector("#resource-list");
 const resourceNotes = document.querySelector("#resource-notes");
 const freeResponseCard = document.querySelector("#free-response-card");
@@ -82,6 +84,13 @@ form.addEventListener("submit", async (event) => {
     state.sessionId = null;
     resetConversationPanels();
     await submitTriage(query);
+});
+
+queryInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        form.requestSubmit();
+    }
 });
 
 voiceButton.addEventListener("click", () => {
@@ -237,7 +246,7 @@ async function submitTriage(query) {
         }
 
         renderTriageResult(payload);
-        setStatus("Resultado atualizado.");
+        clearStatus();
     } catch (error) {
         setStatus(error.message);
     } finally {
@@ -252,12 +261,12 @@ function renderTriageResult(payload) {
 
     resultSection.classList.remove("hidden");
     resultKicker.textContent = triage.triage_class || "resultado";
-    resultHeadline.textContent = triage.headline || "Resultado";
-    resultSummary.textContent = triage.summary || "";
+    resultHeadline.textContent = buildResultHeadline(triage, state.currentQuery);
+    resultSummary.textContent = buildResultSummary(triage, state.currentQuery);
 
     locationTools.classList.toggle("hidden", !["emergency_potential", "urgent_care", "practical_health"].includes(state.currentTriageClass));
     renderActions(resources.actions || []);
-    renderResources(resources.resources || [], resources.notes || []);
+    renderResources(resources.resources || [], resources.notes || [], triage, state.currentQuery);
 
     if (state.currentTriageClass === "light_conversation" && payload.free_response) {
         freeResponseCard.classList.remove("hidden");
@@ -293,27 +302,33 @@ function renderActions(actions) {
     });
 }
 
-function renderResources(resources, notes) {
+function renderResources(resources, notes, triage, query) {
     if (!resources.length && !notes.length) {
         resourcePanel.classList.add("hidden");
+        resourceHeading.textContent = "";
+        resourceIntro.textContent = "";
         return;
     }
 
     resourcePanel.classList.remove("hidden");
+    resourceHeading.textContent = buildResourceHeading(triage, query);
+    resourceIntro.textContent = buildResourceIntro(triage, query);
     resourceList.innerHTML = "";
     resourceNotes.innerHTML = "";
 
-    resources.forEach((item) => {
+    resources.forEach((item, index) => {
         const article = document.createElement("article");
-        article.className = "resource-item";
+        article.className = `resource-item${index === 0 ? " resource-item-primary" : ""}`;
         article.innerHTML = `
-            <h3>${escapeHtml(item.title || "")}</h3>
-            <p>${escapeHtml(item.description || "")}</p>
-            <div class="resource-meta">
-                ${item.region ? `<span>${escapeHtml(item.region)}</span>` : ""}
-                ${item.phone ? `<a href="tel:${escapeHtml(item.phone.replace(/\s+/g, ""))}">${escapeHtml(item.phone)}</a>` : ""}
-                ${item.url ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer">Abrir</a>` : ""}
+            <div class="resource-main">
+                <h3>${escapeHtml(item.title || "")}</h3>
+                <p>${escapeHtml(item.description || "")}</p>
+                <div class="resource-meta">
+                    ${item.region ? `<span>${escapeHtml(item.region)}</span>` : ""}
+                    ${item.phone ? `<a href="tel:${escapeHtml(item.phone.replace(/\s+/g, ""))}">${escapeHtml(item.phone)}</a>` : ""}
+                </div>
             </div>
+            ${item.url ? `<a class="resource-open" href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer">Abrir</a>` : ""}
         `;
         resourceList.appendChild(article);
     });
@@ -442,6 +457,12 @@ function setBusy(value, message) {
 
 function setStatus(message) {
     statusText.textContent = message;
+    statusText.classList.remove("hidden");
+}
+
+function clearStatus() {
+    statusText.textContent = "";
+    statusText.classList.add("hidden");
 }
 
 async function readJsonResponse(response) {
@@ -467,4 +488,90 @@ function escapeHtml(value) {
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;");
+}
+
+function buildResourceHeading(triage, query) {
+    const normalizedQuery = (query || "").toLowerCase();
+    if (triage?.triage_class === "emergency_potential") {
+        return "Encaminhamento imediato";
+    }
+    if (normalizedQuery.includes("medic")) {
+        return "Recursos para medicamento";
+    }
+    if (normalizedQuery.includes("farmac")) {
+        return "Recursos para farmacia";
+    }
+    if (normalizedQuery.includes("hospital")) {
+        return "Recursos para hospital";
+    }
+    if (normalizedQuery.includes("urg")) {
+        return "Recursos para urgencia";
+    }
+    return "Recursos relevantes";
+}
+
+function buildResourceIntro(triage, query) {
+    const normalizedQuery = (query || "").toLowerCase();
+    if (triage?.triage_class === "emergency_potential") {
+        return "Se houver risco imediato, comece por 112.";
+    }
+    if (normalizedQuery.includes("medic")) {
+        return "Comece pela pesquisa oficial de medicamentos.";
+    }
+    if (normalizedQuery.includes("farmac")) {
+        return "Comece por verificar a opcao mais proxima disponivel.";
+    }
+    if (normalizedQuery.includes("hospital")) {
+        return "Comece pelo hospital mais adequado ao que descreveu.";
+    }
+    if (normalizedQuery.includes("urg")) {
+        return "Comece pelo recurso mais proximo e institucional.";
+    }
+    return "Comece pelo primeiro recurso desta lista.";
+}
+
+function buildResultHeadline(triage, query) {
+    const normalizedQuery = (query || "").toLowerCase();
+    if (triage?.triage_class === "emergency_potential") {
+        return triage.headline || "Pode ser uma emergencia";
+    }
+    if (triage?.triage_class === "light_conversation") {
+        return triage.headline || "Vamos organizar isto";
+    }
+    if (normalizedQuery.includes("medic")) {
+        return "Para procurar medicamento";
+    }
+    if (normalizedQuery.includes("farmac")) {
+        return "Para procurar farmacia";
+    }
+    if (normalizedQuery.includes("hospital")) {
+        return "Para encontrar hospital";
+    }
+    if (normalizedQuery.includes("urg")) {
+        return "Para procurar urgencia";
+    }
+    return triage.headline || "Recursos disponiveis";
+}
+
+function buildResultSummary(triage, query) {
+    const normalizedQuery = (query || "").toLowerCase();
+    if (triage?.triage_class === "emergency_potential") {
+        return triage.summary || "";
+    }
+    if (triage?.triage_class === "light_conversation") {
+        return triage.summary || "";
+    }
+    if (normalizedQuery.includes("medic")) {
+        return "Veja primeiro a fonte oficial mais adequada para este pedido.";
+    }
+    if (normalizedQuery.includes("farmac")) {
+        return "Veja a opcao mais proxima e o contacto antes de sair.";
+    }
+    if (normalizedQuery.includes("hospital")) {
+        return "Veja primeiro o recurso institucional mais adequado.";
+    }
+    if (normalizedQuery.includes("urg")) {
+        return "Veja o recurso mais proximo e como la chegar.";
+    }
+    return triage.summary || "";
 }
