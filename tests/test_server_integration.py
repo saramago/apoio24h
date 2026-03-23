@@ -52,12 +52,16 @@ class ServerIntegrationTests(unittest.TestCase):
         status, payload = self.request_json("/api/triage", {"query": "dor no peito"})
         self.assertEqual(status, 200)
         self.assertEqual(payload["triage"]["triage_class"], "emergency_potential")
+        self.assertEqual(payload["response"]["title"], "Pode ser uma emergencia")
+        self.assertEqual(payload["response"]["actions"][0]["label"], "Ligar 112")
 
     def test_light_conversation_flow(self) -> None:
         status, payload = self.request_json("/api/triage", {"query": "nao sei o que fazer"})
         self.assertEqual(status, 200)
         self.assertEqual(payload["triage"]["triage_class"], "light_conversation")
         self.assertIn("free_response", payload)
+        self.assertEqual(payload["response"]["payment_prompt"], "Continuar por 1€")
+        self.assertIn("Proximo passo simples:", payload["response"]["message"])
 
         _, checkin = self.request_json("/api/checkin", {"plan": "continue_1", "customer_phone": "919999999"})
         time.sleep(0.03)

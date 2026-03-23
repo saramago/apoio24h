@@ -53,6 +53,21 @@ class TriageResult:
 
 
 @dataclass
+class StructuredResponse:
+    title: str
+    message: str
+    decision: str
+    primary_action: str
+    actions: list[ActionLink] = field(default_factory=list)
+    payment_prompt: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = asdict(self)
+        payload["actions"] = [action.to_dict() for action in self.actions]
+        return payload
+
+
+@dataclass
 class ProviderHealth:
     name: str
     validated: bool

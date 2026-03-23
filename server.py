@@ -14,6 +14,7 @@ from core.jobs import ProviderRefreshJobs
 from core.observability import Observability
 from core.payments_engine import PRODUCTS, PaymentManager
 from core.providers import build_provider_registry
+from core.response_engine import ResponseEngine
 from core.resource_engine import ResourceEngine
 from core.session_memory import SessionMemoryStore
 from core.triage_engine import TriageEngine
@@ -27,6 +28,7 @@ class AppContext:
         self.triage_engine = TriageEngine()
         self.resource_engine = ResourceEngine(self.providers)
         self.conversation_engine = ConversationEngine(settings)
+        self.response_engine = ResponseEngine(self.conversation_engine)
         self.payments = PaymentManager(settings)
         self.session_memory = SessionMemoryStore(settings.session_memory_ttl_seconds)
         self.jobs = ProviderRefreshJobs(self.providers, settings.provider_refresh_interval_seconds)
@@ -116,8 +118,10 @@ def make_handler(app: AppContext):
             app.session_memory.remember(session_id, query, triage.triage_class, resolved_query)
 
             resources = app.resource_engine.build(triage, resolved_query, location)
+            response = app.response_engine.build(triage, resolved_query, memory_context, resources)
             payload = {
                 "triage": triage.to_dict(),
+                "response": response.to_dict(),
                 "resources": resources,
                 "products": {"continue_1": PRODUCTS["continue_1"]},
                 "memory": {
