@@ -1,18 +1,18 @@
 :root {
-    --bg: #f5efe7;
-    --bg-soft: #fbf7f1;
-    --card: rgba(255, 252, 247, 0.96);
-    --line: rgba(70, 53, 36, 0.1);
+    --bg: #eff1f4;
+    --bg-soft: #f8f9fb;
+    --card: rgba(255, 255, 255, 0.96);
+    --line: rgba(31, 41, 55, 0.1);
     --text: #1f2937;
-    --muted: #566579;
-    --accent: #c65e39;
-    --accent-dark: #a04828;
+    --muted: #5f6b7a;
+    --accent: #243447;
+    --accent-dark: #172231;
     --dark: #162033;
-    --pink: #e13a8b;
-    --green: #2dad42;
-    --blue: #3177ea;
-    --shadow: 0 22px 50px rgba(117, 90, 60, 0.1);
-    --radius: 30px;
+    --pink: #31445b;
+    --green: #455b74;
+    --blue: #1f2937;
+    --shadow: 0 18px 40px rgba(31, 41, 55, 0.08);
+    --radius: 24px;
 }
 
 * {
@@ -23,10 +23,7 @@ body {
     margin: 0;
     font-family: "Manrope", sans-serif;
     color: var(--text);
-    background:
-        radial-gradient(circle at top left, rgba(198, 94, 57, 0.18), transparent 24%),
-        radial-gradient(circle at top right, rgba(49, 119, 234, 0.1), transparent 26%),
-        linear-gradient(180deg, #f4ece1 0%, #f8f3ec 55%, #f2e8dc 100%);
+    background: linear-gradient(180deg, #eef1f5 0%, #f6f8fb 100%);
 }
 
 .page-shell {
@@ -37,10 +34,9 @@ body {
 
 .card {
     background: var(--card);
-    border: 1px solid rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(31, 41, 55, 0.06);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
-    backdrop-filter: blur(10px);
 }
 
 .hero,
@@ -60,7 +56,7 @@ body {
     letter-spacing: 0.2em;
     font-size: 12px;
     font-weight: 800;
-    color: var(--accent);
+    color: #516070;
 }
 
 .hero-grid {
@@ -77,11 +73,11 @@ p {
 }
 
 h1 {
-    font-size: clamp(2.7rem, 6.5vw, 5.4rem);
-    line-height: 0.9;
+    font-size: clamp(2.5rem, 6vw, 4.8rem);
+    line-height: 0.95;
     letter-spacing: -0.04em;
-    max-width: 7ch;
-    margin-bottom: 14px;
+    max-width: 9ch;
+    margin-bottom: 16px;
 }
 
 h2 {
@@ -99,9 +95,9 @@ h2 {
 }
 
 .lede {
-    max-width: 34ch;
-    font-size: 1.25rem;
-    line-height: 1.45;
+    max-width: 42ch;
+    font-size: 1.12rem;
+    line-height: 1.55;
     margin-bottom: 18px;
 }
 
@@ -125,14 +121,14 @@ h2 {
 
 .primary-cta {
     border: none;
-    border-radius: 18px;
+    border-radius: 14px;
     padding: 18px 22px;
     font: inherit;
     font-weight: 800;
-    font-size: 1.05rem;
+    font-size: 1rem;
     color: #fffdf9;
-    background: linear-gradient(135deg, var(--accent), #d9774f);
-    box-shadow: 0 16px 34px rgba(198, 94, 57, 0.24);
+    background: var(--dark);
+    box-shadow: 0 10px 20px rgba(31, 41, 55, 0.16);
     cursor: pointer;
 }
 
@@ -143,13 +139,13 @@ h2 {
 
 .info-box {
     border: 1px solid var(--line);
-    border-radius: 24px;
+    border-radius: 18px;
     padding: 18px;
-    background: rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.92);
 }
 
 .info-box.soft {
-    background: linear-gradient(180deg, rgba(248, 234, 221, 0.65), rgba(255, 255, 255, 0.72));
+    background: rgba(247, 249, 252, 0.98);
 }
 
 .info-title {
@@ -216,7 +212,7 @@ h2 {
 #chat-input {
     width: 100%;
     border: 1px solid var(--line);
-    border-radius: 20px;
+    border-radius: 14px;
     padding: 15px 16px;
     font: inherit;
     background: rgba(255, 255, 255, 0.86);
@@ -237,7 +233,7 @@ h2 {
 
 .plan-card {
     border: none;
-    border-radius: 24px;
+    border-radius: 18px;
     color: white;
     padding: 20px;
     min-height: 170px;
@@ -248,7 +244,7 @@ h2 {
     justify-content: space-between;
     gap: 12px;
     font: inherit;
-    box-shadow: 0 14px 28px rgba(50, 45, 40, 0.12);
+    box-shadow: 0 10px 20px rgba(31, 41, 55, 0.1);
     transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
 }
 
@@ -258,7 +254,7 @@ h2 {
 
 .plan-card-focus {
     transform: translateY(-4px);
-    box-shadow: 0 0 0 4px rgba(198, 94, 57, 0.18), 0 18px 34px rgba(50, 45, 40, 0.18);
+    box-shadow: 0 0 0 4px rgba(36, 52, 71, 0.12), 0 18px 28px rgba(31, 41, 55, 0.16);
 }
 
 .plan-card:disabled {
@@ -267,22 +263,22 @@ h2 {
 }
 
 .plan-pink {
-    background: linear-gradient(135deg, #f04293, #cf2c79);
+    background: linear-gradient(135deg, #40556f, #2f4057);
 }
 
 .plan-green {
-    background: linear-gradient(135deg, #37b74d, #21963a);
+    background: linear-gradient(135deg, #546b86, #42576f);
 }
 
 .plan-blue {
-    background: linear-gradient(135deg, #3a81f2, #2469da);
+    background: linear-gradient(135deg, #273447, #192331);
 }
 
 .plan-tag {
     display: inline-flex;
     width: fit-content;
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.32);
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.22);
     padding: 7px 10px;
     border-radius: 999px;
     font-size: 0.82rem;
@@ -309,9 +305,9 @@ h2 {
 .status-box {
     margin-top: 20px;
     border: 1px solid var(--line);
-    border-radius: 22px;
+    border-radius: 16px;
     padding: 18px;
-    background: rgba(255, 255, 255, 0.72);
+    background: rgba(247, 249, 252, 0.98);
 }
 
 .trust-grid {
@@ -322,9 +318,9 @@ h2 {
 
 .trust-item {
     border: 1px solid var(--line);
-    border-radius: 24px;
+    border-radius: 18px;
     padding: 20px;
-    background: rgba(255, 255, 255, 0.72);
+    background: rgba(247, 249, 252, 0.98);
 }
 
 .trust-item h2 {
