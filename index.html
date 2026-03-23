@@ -3,45 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Falar agora</title>
+    <title>apoio24h.com</title>
+    <meta name="description" content="Triagem pratica e encaminhamento util para necessidades de saude, urgencia, farmacia, medicamento e conversa nao urgente.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <main class="voice-shell">
-        <section class="voice-stage">
-            <p class="voice-prompt">Diga o que tem na cabeca</p>
-            <button type="button" id="record-button" class="record-button">Falar agora</button>
-            <p id="status-text" class="status-text">Primeira resposta gratuita.</p>
-            <p id="timer-text" class="timer-text hidden">A gravar...</p>
-        </section>
+    <main class="shell">
+        <header class="topline">apoio24h.com</header>
 
-        <section id="transcript-panel" class="voice-card hidden">
-            <p class="voice-label">O que disse</p>
-            <p id="transcript-text" class="voice-copy"></p>
-        </section>
-
-        <section id="response-panel" class="voice-card hidden">
-            <p class="voice-label">Resposta</p>
-            <p id="response-text" class="voice-copy"></p>
-        </section>
-
-        <section id="payment-panel" class="voice-card hidden">
-            <p class="voice-label">Continuar</p>
-            <p class="voice-copy">Pode continuar por 1€.</p>
-            <form id="payment-form" class="payment-form">
-                <input id="phone-input" name="customer_phone" type="tel" placeholder="Numero MB WAY" required>
-                <button type="submit" class="pay-button">Continuar por 1€</button>
+        <section class="hero">
+            <h1>Diga o que precisa</h1>
+            <form id="triage-form" class="triage-form">
+                <label for="query-input" class="sr-only">Descreva o que precisa</label>
+                <textarea id="query-input" name="query" rows="3" maxlength="600" placeholder="dor no peito"></textarea>
+                <div class="hero-actions">
+                    <button type="submit" id="continue-button" class="button button-primary">Continuar</button>
+                    <button type="button" id="voice-button" class="button button-secondary">Falar por voz</button>
+                </div>
             </form>
-            <p id="payment-note" class="helper-text"></p>
+            <p class="trust-copy">Triagem pratica e encaminhamento. Nao substitui emergencia medica.</p>
+            <p id="status-text" class="status-text">Pronto.</p>
         </section>
 
-        <footer class="voice-footer">
-            <span>Privado</span>
-            <span>Sem gravacao permanente</span>
-            <span>Sem julgamento</span>
+        <section id="result-section" class="result-section hidden">
+            <div class="result-header">
+                <p id="result-kicker" class="result-kicker">Resultado</p>
+                <h2 id="result-headline" class="result-headline"></h2>
+                <p id="result-summary" class="result-summary"></p>
+            </div>
+
+            <div id="location-tools" class="location-tools hidden">
+                <button type="button" id="location-button" class="button button-secondary">Usar a minha localizacao</button>
+                <p id="location-text" class="micro-text"></p>
+            </div>
+
+            <div id="result-actions" class="result-actions"></div>
+
+            <div id="free-response-card" class="panel hidden">
+                <p class="panel-label">Resposta inicial</p>
+                <div id="free-response-text" class="structured-copy"></div>
+            </div>
+
+            <div id="resource-panel" class="panel hidden">
+                <div class="panel-header">
+                    <p class="panel-label">Mapa e lista</p>
+                    <p class="panel-note">Recursos utilitarios e oficiais sempre que disponiveis.</p>
+                </div>
+                <div id="resource-list" class="resource-list"></div>
+                <ul id="resource-notes" class="note-list"></ul>
+            </div>
+
+            <div id="payment-panel" class="panel hidden">
+                <p class="panel-label">Continuar por 1€</p>
+                <p class="panel-copy">Desbloqueia a conversa curta e estruturada para este caso nao urgente.</p>
+                <form id="payment-form" class="stack-form">
+                    <label for="phone-input">Numero MB WAY</label>
+                    <input id="phone-input" name="customer_phone" type="tel" placeholder="Ex.: 919999999" required>
+                    <button type="submit" class="button button-primary">Continuar por 1€</button>
+                </form>
+                <p id="payment-note" class="micro-text"></p>
+            </div>
+
+            <div id="chat-panel" class="panel hidden">
+                <p class="panel-label">Conversa</p>
+                <div id="chat-log" class="chat-log"></div>
+                <form id="chat-form" class="stack-form">
+                    <label for="chat-input">Responder</label>
+                    <textarea id="chat-input" rows="3" maxlength="500" placeholder="Escreva a sua resposta"></textarea>
+                    <button type="submit" class="button button-primary">Enviar</button>
+                </form>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-links">
+                <a href="/pages/como-funciona.html">Como funciona</a>
+                <a href="/pages/fontes-de-dados.html">Fontes de dados</a>
+                <a href="/pages/limites-do-servico.html">Limites do servico</a>
+                <a href="/pages/privacidade.html">Privacidade</a>
+            </div>
         </footer>
     </main>
 

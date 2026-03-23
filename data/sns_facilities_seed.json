@@ -1,0 +1,149 @@
+{
+  "source_url": "https://transparencia.sns.gov.pt/",
+  "items": [
+    {
+      "title": "Urgencias em Lisboa",
+      "description": "Pesquisa util para urgencias hospitalares na zona de Lisboa.",
+      "city": "Lisboa",
+      "category": "urgency",
+      "lat": 38.7223,
+      "lon": -9.1393,
+      "url": "https://www.google.com/maps/search/?api=1&query=urgencia+hospitalar+Lisboa"
+    },
+    {
+      "title": "Hospitais em Lisboa",
+      "description": "Pesquisa util para hospitais na zona de Lisboa.",
+      "city": "Lisboa",
+      "category": "hospital",
+      "lat": 38.7223,
+      "lon": -9.1393,
+      "url": "https://www.google.com/maps/search/?api=1&query=hospital+Lisboa"
+    },
+    {
+      "title": "Urgencias no Porto",
+      "description": "Pesquisa util para urgencias hospitalares na zona do Porto.",
+      "city": "Porto",
+      "category": "urgency",
+      "lat": 41.1579,
+      "lon": -8.6291,
+      "url": "https://www.google.com/maps/search/?api=1&query=urgencia+hospitalar+Porto"
+    },
+    {
+      "title": "Hospitais no Porto",
+      "description": "Pesquisa util para hospitais na zona do Porto.",
+      "city": "Porto",
+      "category": "hospital",
+      "lat": 41.1579,
+      "lon": -8.6291,
+      "url": "https://www.google.com/maps/search/?api=1&query=hospital+Porto"
+    },
+    {
+      "title": "Urgencias em Coimbra",
+      "description": "Pesquisa util para urgencias hospitalares na zona de Coimbra.",
+      "city": "Coimbra",
+      "category": "urgency",
+      "lat": 40.2033,
+      "lon": -8.4103,
+      "url": "https://www.google.com/maps/search/?api=1&query=urgencia+hospitalar+Coimbra"
+    },
+    {
+      "title": "Hospitais em Coimbra",
+      "description": "Pesquisa util para hospitais na zona de Coimbra.",
+      "city": "Coimbra",
+      "category": "hospital",
+      "lat": 40.2033,
+      "lon": -8.4103,
+      "url": "https://www.google.com/maps/search/?api=1&query=hospital+Coimbra"
+    },
+    {
+      "title": "Urgencias em Braga",
+      "description": "Pesquisa util para urgencias hospitalares na zona de Braga.",
+      "city": "Braga",
+      "category": "urgency",
+      "lat": 41.5454,
+      "lon": -8.4265,
+      "url": "https://www.google.com/maps/search/?api=1&query=urgencia+hospitalar+Braga"
+    },
+    {
+      "title": "Hospitais em Braga",
+      "description": "Pesquisa util para hospitais na zona de Braga.",
+      "city": "Braga",
+      "category": "hospital",
+      "lat": 41.5454,
+      "lon": -8.4265,
+      "url": "https://www.google.com/maps/search/?api=1&query=hospital+Braga"
+    },
+    {
+      "title": "Urgencias em Faro",
+      "description": "Pesquisa util para urgencias hospitalares na zona de Faro.",
+      "city": "Faro",
+      "category": "urgency",
+      "lat": 37.0194,
+      "lon": -7.9304,
+      "url": "https://www.google.com/maps/search/?api=1&query=urgencia+hospitalar+Faro"
+    },
+    {
+      "title": "Hospitais em Faro",
+      "description": "Pesquisa util para hospitais na zona de Faro.",
+      "city": "Faro",
+      "category": "hospital",
+      "lat": 37.0194,
+      "lon": -7.9304,
+      "url": "https://www.google.com/maps/search/?api=1&query=hospital+Faro"
+    },
+    {
+      "title": "Urgencias em Setubal",
+      "description": "Pesquisa util para urgencias hospitalares na zona de Setubal.",
+      "city": "Setubal",
+      "category": "urgency",
+      "lat": 38.5244,
+      "lon": -8.8882,
+      "url": "https://www.google.com/maps/search/?api=1&query=urgencia+hospitalar+Setubal"
+    },
+    {
+      "title": "Hospitais em Setubal",
+      "description": "Pesquisa util para hospitais na zona de Setubal.",
+      "city": "Setubal",
+      "category": "hospital",
+      "lat": 38.5244,
+      "lon": -8.8882,
+      "url": "https://www.google.com/maps/search/?api=1&query=hospital+Setubal"
+    },
+    {
+      "title": "Urgencias em Evora",
+      "description": "Pesquisa util para urgencias hospitalares na zona de Evora.",
+      "city": "Evora",
+      "category": "urgency",
+      "lat": 38.5714,
+      "lon": -7.9135,
+      "url": "https://www.google.com/maps/search/?api=1&query=urgencia+hospitalar+Evora"
+    },
+    {
+      "title": "Hospitais em Evora",
+      "description": "Pesquisa util para hospitais na zona de Evora.",
+      "city": "Evora",
+      "category": "hospital",
+      "lat": 38.5714,
+      "lon": -7.9135,
+      "url": "https://www.google.com/maps/search/?api=1&query=hospital+Evora"
+    },
+    {
+      "title": "Urgencias em Aveiro",
+      "description": "Pesquisa util para urgencias hospitalares na zona de Aveiro.",
+      "city": "Aveiro",
+      "category": "urgency",
+      "lat": 40.6405,
+      "lon": -8.6538,
+      "url": "https://www.google.com/maps/search/?api=1&query=urgencia+hospitalar+Aveiro"
+    },
+    {
+      "title": "Hospitais em Aveiro",
+      "description": "Pesquisa util para hospitais na zona de Aveiro.",
+      "city": "Aveiro",
+      "category": "hospital",
+      "lat": 40.6405,
+      "lon": -8.6538,
+      "url": "https://www.google.com/maps/search/?api=1&query=hospital+Aveiro"
+    }
+  ]
+}

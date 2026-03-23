@@ -1,29 +1,55 @@
 const state = {
+    currentQuery: "",
+    currentTriageClass: null,
+    freeResponseId: null,
+    location: null,
     checkinId: null,
-    customerPhone: "",
-    previousResponseId: null,
-    isBusy: false,
     paid: false,
-    freeTurnUsed: false,
-    transcript: "",
+    sessionId: null,
+    isBusy: false,
 };
 
-const recordButton = document.querySelector("#record-button");
+const examplePlaceholders = [
+    "dor no peito",
+    "farmacia aberta",
+    "hospital mais proximo",
+    "nao sei o que fazer",
+    "estou com ansiedade",
+    "preciso de um medicamento",
+];
+
+const form = document.querySelector("#triage-form");
+const queryInput = document.querySelector("#query-input");
+const continueButton = document.querySelector("#continue-button");
+const voiceButton = document.querySelector("#voice-button");
 const statusText = document.querySelector("#status-text");
-const timerText = document.querySelector("#timer-text");
-const transcriptPanel = document.querySelector("#transcript-panel");
-const transcriptText = document.querySelector("#transcript-text");
-const responsePanel = document.querySelector("#response-panel");
-const responseText = document.querySelector("#response-text");
+const resultSection = document.querySelector("#result-section");
+const resultKicker = document.querySelector("#result-kicker");
+const resultHeadline = document.querySelector("#result-headline");
+const resultSummary = document.querySelector("#result-summary");
+const locationTools = document.querySelector("#location-tools");
+const locationButton = document.querySelector("#location-button");
+const locationText = document.querySelector("#location-text");
+const resultActions = document.querySelector("#result-actions");
+const resourcePanel = document.querySelector("#resource-panel");
+const resourceList = document.querySelector("#resource-list");
+const resourceNotes = document.querySelector("#resource-notes");
+const freeResponseCard = document.querySelector("#free-response-card");
+const freeResponseText = document.querySelector("#free-response-text");
 const paymentPanel = document.querySelector("#payment-panel");
 const paymentForm = document.querySelector("#payment-form");
 const phoneInput = document.querySelector("#phone-input");
 const paymentNote = document.querySelector("#payment-note");
+const chatPanel = document.querySelector("#chat-panel");
+const chatLog = document.querySelector("#chat-log");
+const chatForm = document.querySelector("#chat-form");
+const chatInput = document.querySelector("#chat-input");
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = SpeechRecognition ? new SpeechRecognition() : null;
 
-let recognitionTimeout = null;
+let placeholderIndex = 0;
+let placeholderTimer = null;
 let statusPollTimer = null;
 
 if (recognition) {
@@ -32,24 +58,89 @@ if (recognition) {
     recognition.maxAlternatives = 1;
 }
 
-recordButton.addEventListener("click", () => {
-    if (!recognition) {
-        setStatus("Este dispositivo nao suporta gravacao de voz no browser.");
-        return;
-    }
+rotatePlaceholder();
+placeholderTimer = window.setInterval(rotatePlaceholder, 2800);
 
+form.addEventListener("submit", async (event) => {
+    event.preventDefault();
     if (state.isBusy) {
         return;
     }
 
-    if (state.freeTurnUsed && !state.paid) {
-        paymentPanel.classList.remove("hidden");
-        phoneInput.focus();
-        setStatus("Pode continuar por 1€.");
+    const query = queryInput.value.trim();
+    if (!query) {
+        queryInput.focus();
+        setStatus("Escreva o que precisa antes de continuar.");
         return;
     }
 
-    startRecording();
+    state.currentQuery = query;
+    state.currentTriageClass = null;
+    state.freeResponseId = null;
+    state.checkinId = null;
+    state.paid = false;
+    state.sessionId = null;
+    resetConversationPanels();
+    await submitTriage(query);
+});
+
+voiceButton.addEventListener("click", () => {
+    if (!recognition) {
+        setStatus("A gravacao de voz nao esta disponivel neste browser.");
+        return;
+    }
+    if (state.isBusy) {
+        return;
+    }
+    recognition.start();
+    setStatus("A ouvir...");
+});
+
+if (recognition) {
+    recognition.addEventListener("result", (event) => {
+        const transcript = Array.from(event.results)
+            .map((result) => result[0]?.transcript || "")
+            .join(" ")
+            .trim();
+
+        if (!transcript) {
+            setStatus("Nao foi possivel perceber o que disse.");
+            return;
+        }
+
+        queryInput.value = transcript;
+        setStatus("Texto captado. Pode rever e continuar.");
+    });
+
+    recognition.addEventListener("error", () => {
+        setStatus("A gravacao foi interrompida.");
+    });
+}
+
+locationButton.addEventListener("click", async () => {
+    if (!navigator.geolocation) {
+        setStatus("A localizacao nao esta disponivel neste dispositivo.");
+        return;
+    }
+    if (!state.currentQuery || state.isBusy) {
+        return;
+    }
+
+    setStatus("A obter localizacao...");
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            state.location = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+            };
+            locationText.textContent = `Localizacao aproximada ativa (${position.coords.latitude.toFixed(3)}, ${position.coords.longitude.toFixed(3)}).`;
+            await submitTriage(state.currentQuery);
+        },
+        () => {
+            setStatus("Nao foi possivel obter a localizacao.");
+        },
+        { enableHighAccuracy: false, maximumAge: 300000, timeout: 8000 },
+    );
 });
 
 paymentForm.addEventListener("submit", async (event) => {
@@ -57,28 +148,24 @@ paymentForm.addEventListener("submit", async (event) => {
     if (state.isBusy) {
         return;
     }
-
-    const enteredPhone = phoneInput.value.trim();
-    if (!enteredPhone) {
-        phoneInput.focus();
-        setStatus("Indique primeiro o seu numero MB WAY.");
+    if (state.currentTriageClass !== "light_conversation") {
         return;
     }
 
-    state.customerPhone = enteredPhone;
-    setBusy(true, "A preparar o pagamento...");
-    paymentNote.textContent = "";
+    const phone = phoneInput.value.trim();
+    if (!phone) {
+        phoneInput.focus();
+        setStatus("Indique o numero MB WAY.");
+        return;
+    }
 
+    setBusy(true, "A preparar o pagamento...");
     try {
         const response = await fetch("/api/checkin", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                plan: "continue",
-                customer_phone: state.customerPhone,
-            }),
+            body: JSON.stringify({ plan: "continue_1", customer_phone: phone }),
         });
-
         const payload = await readJsonResponse(response);
         if (!response.ok) {
             throw new Error(payload.error || "Nao foi possivel iniciar o pagamento.");
@@ -100,96 +187,149 @@ paymentForm.addEventListener("submit", async (event) => {
     }
 });
 
-if (recognition) {
-    recognition.addEventListener("result", async (event) => {
-        const transcript = Array.from(event.results)
-            .map((result) => result[0]?.transcript || "")
-            .join(" ")
-            .trim();
-
-        stopRecordingTimer();
-
-        if (!transcript) {
-            setStatus("Nao foi possivel perceber o que disse. Tente novamente.");
-            setBusy(false);
-            return;
-        }
-
-        state.transcript = transcript;
-        transcriptPanel.classList.remove("hidden");
-        transcriptText.textContent = transcript;
-        await sendTranscript(transcript);
-    });
-
-    recognition.addEventListener("error", () => {
-        stopRecordingTimer();
-        setBusy(false);
-        setStatus("A gravacao foi interrompida. Tente novamente.");
-    });
-
-    recognition.addEventListener("end", () => {
-        stopRecordingTimer();
-    });
-}
-
-function startRecording() {
-    state.transcript = "";
-    transcriptPanel.classList.add("hidden");
-    setBusy(true, "A ouvir...");
-    timerText.classList.remove("hidden");
-    timerText.textContent = "Pode falar ate 60 segundos.";
-
-    recognition.start();
-    recognitionTimeout = window.setTimeout(() => {
-        recognition.stop();
-    }, 60000);
-}
-
-function stopRecordingTimer() {
-    if (recognitionTimeout) {
-        window.clearTimeout(recognitionTimeout);
-        recognitionTimeout = null;
+chatForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (state.isBusy || !state.sessionId) {
+        return;
     }
-    timerText.classList.add("hidden");
-}
 
-async function sendTranscript(transcript) {
-    setStatus("A organizar a resposta...");
+    const message = chatInput.value.trim();
+    if (!message) {
+        chatInput.focus();
+        return;
+    }
+
+    appendChatMessage("utilizador", message);
+    chatInput.value = "";
+    setBusy(true, "A responder...");
 
     try {
         const response = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                plan: state.previousResponseId ? "continue" : "free",
-                message: transcript,
-                previous_response_id: state.previousResponseId,
-            }),
+            body: JSON.stringify({ session_id: state.sessionId, message }),
         });
-
         const payload = await readJsonResponse(response);
         if (!response.ok) {
-            throw new Error(payload.error || "Nao foi possivel gerar a resposta.");
+            throw new Error(payload.error || "Nao foi possivel continuar a conversa.");
         }
 
-        state.previousResponseId = payload.response_id || state.previousResponseId;
-        state.freeTurnUsed = true;
-        responsePanel.classList.remove("hidden");
-        responseText.textContent = payload.message;
-        speakText(payload.message);
-
-        if (!state.paid) {
-            paymentPanel.classList.remove("hidden");
-            paymentNote.textContent = "Pode continuar por 1€.";
-            setStatus("Primeira resposta concluida.");
-        } else {
-            setStatus("Resposta pronta.");
-        }
+        appendChatMessage("sistema", payload.message);
+        setStatus("Resposta pronta.");
     } catch (error) {
-        setStatus(normalizeStartupError(error.message));
+        setStatus(error.message);
     } finally {
         setBusy(false);
     }
+});
+
+async function submitTriage(query) {
+    setBusy(true, "A analisar...");
+    try {
+        const response = await fetch("/api/triage", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query, location: state.location }),
+        });
+        const payload = await readJsonResponse(response);
+        if (!response.ok) {
+            throw new Error(payload.error || "Nao foi possivel analisar o pedido.");
+        }
+
+        renderTriageResult(payload);
+        setStatus("Resultado atualizado.");
+    } catch (error) {
+        setStatus(error.message);
+    } finally {
+        setBusy(false);
+    }
+}
+
+function renderTriageResult(payload) {
+    const triage = payload.triage || {};
+    const resources = payload.resources || {};
+    state.currentTriageClass = triage.triage_class || null;
+
+    resultSection.classList.remove("hidden");
+    resultKicker.textContent = triage.triage_class || "resultado";
+    resultHeadline.textContent = triage.headline || "Resultado";
+    resultSummary.textContent = triage.summary || "";
+
+    locationTools.classList.toggle("hidden", !["emergency_potential", "urgent_care", "practical_health"].includes(state.currentTriageClass));
+    renderActions(resources.actions || []);
+    renderResources(resources.resources || [], resources.notes || []);
+
+    if (state.currentTriageClass === "light_conversation" && payload.free_response) {
+        freeResponseCard.classList.remove("hidden");
+        freeResponseText.innerHTML = payload.free_response.message
+            .split("\n")
+            .map((line) => `<p>${escapeHtml(line)}</p>`)
+            .join("");
+        paymentPanel.classList.remove("hidden");
+    } else {
+        freeResponseCard.classList.add("hidden");
+        paymentPanel.classList.add("hidden");
+    }
+
+    if (state.currentTriageClass === "emergency_potential") {
+        paymentPanel.classList.add("hidden");
+        chatPanel.classList.add("hidden");
+    }
+}
+
+function renderActions(actions) {
+    resultActions.innerHTML = "";
+    if (!actions.length) {
+        return;
+    }
+    actions.forEach((action) => {
+        const element = document.createElement("a");
+        element.className = `button ${action.style === "primary" ? "button-primary" : "button-secondary"}`;
+        element.href = action.url;
+        element.target = action.external === false ? "_self" : "_blank";
+        element.rel = "noreferrer";
+        element.textContent = action.label;
+        resultActions.appendChild(element);
+    });
+}
+
+function renderResources(resources, notes) {
+    if (!resources.length && !notes.length) {
+        resourcePanel.classList.add("hidden");
+        return;
+    }
+
+    resourcePanel.classList.remove("hidden");
+    resourceList.innerHTML = "";
+    resourceNotes.innerHTML = "";
+
+    resources.forEach((item) => {
+        const article = document.createElement("article");
+        article.className = "resource-item";
+        article.innerHTML = `
+            <h3>${escapeHtml(item.title || "")}</h3>
+            <p>${escapeHtml(item.description || "")}</p>
+            <div class="resource-meta">
+                ${item.region ? `<span>${escapeHtml(item.region)}</span>` : ""}
+                ${item.phone ? `<a href="tel:${escapeHtml(item.phone.replace(/\s+/g, ""))}">${escapeHtml(item.phone)}</a>` : ""}
+                ${item.url ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer">Abrir</a>` : ""}
+            </div>
+        `;
+        resourceList.appendChild(article);
+    });
+
+    if (!resources.length) {
+        const empty = document.createElement("p");
+        empty.className = "empty-note";
+        empty.textContent = "Sem resultados adicionais para mostrar neste momento.";
+        resourceList.appendChild(empty);
+    }
+
+    notes.forEach((note) => {
+        const li = document.createElement("li");
+        li.textContent = note;
+        resourceNotes.appendChild(li);
+    });
 }
 
 function startStatusPolling() {
@@ -227,8 +367,8 @@ async function checkCheckinStatus() {
         if (payload.status_code === "AUTHORIZED" || payload.status_code === "Success") {
             state.paid = true;
             clearStatusPoll();
-            paymentNote.textContent = "Pagamento confirmado. Pode voltar a falar quando quiser.";
-            setStatus("Pode falar novamente.");
+            paymentNote.textContent = "Pagamento confirmado.";
+            await startPaidConversation();
         }
     } catch (error) {
         clearStatusPoll();
@@ -236,37 +376,65 @@ async function checkCheckinStatus() {
     }
 }
 
-function speakText(text) {
-    if (!("speechSynthesis" in window)) {
-        return;
+async function startPaidConversation() {
+    setBusy(true, "A iniciar a conversa...");
+    try {
+        const response = await fetch("/api/session/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                plan: "continue_1",
+                checkin_id: state.checkinId,
+                original_query: state.currentQuery,
+            }),
+        });
+        const payload = await readJsonResponse(response);
+        if (!response.ok) {
+            throw new Error(payload.error || "Nao foi possivel iniciar a conversa.");
+        }
+
+        state.sessionId = payload.session_id;
+        paymentPanel.classList.add("hidden");
+        chatPanel.classList.remove("hidden");
+        appendChatMessage("sistema", payload.message);
+        setStatus("Conversa pronta.");
+    } catch (error) {
+        setStatus(normalizeConversationError(error.message));
+    } finally {
+        setBusy(false);
     }
+}
 
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "pt-PT";
-    utterance.rate = 0.92;
-    utterance.pitch = 0.95;
-    utterance.volume = 1;
+function appendChatMessage(role, message) {
+    const entry = document.createElement("div");
+    entry.className = `chat-entry ${role}`;
+    entry.innerHTML = `<p>${escapeHtml(message).replace(/\n/g, "<br>")}</p>`;
+    chatLog.appendChild(entry);
+    chatLog.scrollTop = chatLog.scrollHeight;
+}
 
-    const voices = window.speechSynthesis.getVoices();
-    const preferredVoice =
-        voices.find((voice) => voice.lang === "pt-PT" && /catarina|joana|maria/i.test(voice.name)) ||
-        voices.find((voice) => voice.lang === "pt-PT") ||
-        voices.find((voice) => voice.lang.startsWith("pt")) ||
-        null;
+function resetConversationPanels() {
+    clearStatusPoll();
+    freeResponseCard.classList.add("hidden");
+    paymentPanel.classList.add("hidden");
+    chatPanel.classList.add("hidden");
+    paymentNote.textContent = "";
+    chatLog.innerHTML = "";
+}
 
-    if (preferredVoice) {
-        utterance.voice = preferredVoice;
-    }
-
-    window.speechSynthesis.speak(utterance);
+function rotatePlaceholder() {
+    queryInput.placeholder = examplePlaceholders[placeholderIndex % examplePlaceholders.length];
+    placeholderIndex += 1;
 }
 
 function setBusy(value, message) {
     state.isBusy = value;
-    recordButton.disabled = value;
+    continueButton.disabled = value;
+    voiceButton.disabled = value;
     phoneInput.disabled = value;
+    chatInput.disabled = value;
     paymentForm.querySelector("button[type='submit']").disabled = value;
+    chatForm.querySelector("button[type='submit']").disabled = value;
     if (message) {
         setStatus(message);
     }
@@ -279,11 +447,9 @@ function setStatus(message) {
 async function readJsonResponse(response) {
     const contentType = response.headers.get("content-type") || "";
     const rawText = await response.text();
-
     if (!contentType.includes("application/json")) {
         throw new Error("O servidor devolveu uma resposta invalida.");
     }
-
     try {
         return JSON.parse(rawText);
     } catch {
@@ -291,13 +457,14 @@ async function readJsonResponse(response) {
     }
 }
 
-function normalizeStartupError(message) {
-    if (message.includes("insufficient_quota") || message.includes("HTTP 429")) {
-        return "De momento, nao foi possivel gerar a resposta. Tente novamente dentro de instantes.";
-    }
-    return message;
+function normalizeConversationError(message) {
+    return "De momento, nao foi possivel continuar a conversa. Tente novamente dentro de instantes.";
 }
 
-if ("speechSynthesis" in window) {
-    window.speechSynthesis.onvoiceschanged = () => {};
+function escapeHtml(value) {
+    return (value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
 }

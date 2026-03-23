@@ -1,94 +1,146 @@
-Apoio 24H com check-in por duracao, sandbox MB WAY e conversa via OpenAI API.
+# apoio24h.com v1
 
-## O que foi criado
+apoio24h e uma aplicacao web portuguesa de triagem leve e encaminhamento util.
 
-- `index.html`: landing page com botoes de check-in e interface de chat.
-- `static/app.js`: fluxo do frontend para iniciar check-in, esperar autorizacao e continuar a conversa.
-- `static/styles.css`: visual do site.
-- `server.py`: servidor local em Python que serve o site e faz proxy para a OpenAI.
-- `prompts/advisor_system.txt`: prompt principal para definires o teu guiao.
+O utilizador escreve ou fala o que precisa. O sistema classifica de forma conservadora e encaminha para recursos adequados. A conversa paga so aparece em situacoes nao urgentes, com primeira resposta curta gratis e continuacao por 1€.
+
+## Escopo desta v1
+
+- pagina inicial minimalista
+- triagem com 4 classes:
+  - `emergency_potential`
+  - `urgent_care`
+  - `practical_health`
+  - `light_conversation`
+- encaminhamento para 112, SNS 24, urgencias, hospitais, medicamentos e mapa
+- monetizacao apenas na conversa nao urgente
+- painel tecnico minimo de observabilidade
+
+## Arquitetura atual
+
+- `index.html`: interface unica e austera
+- `static/app.js`: fluxo do frontend
+- `static/styles.css`: UI minimalista
+- `server.py`: servidor HTTP, API, admin e servico de ficheiros
+- `core/triage_engine.py`: classificacao conservadora
+- `core/resource_engine.py`: recursos e encaminhamento
+- `core/conversation_engine.py`: resposta curta gratis e conversa paga
+- `core/payments_engine.py`: MB WAY mock / SIBS sandbox
+- `core/providers/`: abstractions de fontes e mapa
+- `core/jobs.py`: refresh jobs simples
+- `data/sns_facilities_seed.json`: fallback utilitario para urgencias e hospitais
+- `pages/`: paginas factuais curtas
+- `tests/`: testes unitarios e de integracao
+
+## Providers
+
+Implementados como abstractions separadas:
+
+- `sns_transparencia`
+- `sns_portal`
+- `infarmed_infomed`
+- `farmacias_provider`
+- `maps_provider`
+
+Notas de honestidade:
+
+- `sns_portal`: usado para contactos e links institucionais
+- `sns_transparencia`: nesta versao serve uma base utilitaria de fallback para urgencias e hospitais
+- `infarmed_infomed`: usado como ponto institucional para medicamentos
+- `farmacias_provider`: ainda nao validado para dados robustos de servico; a UI assinala indisponibilidade quando aplicavel
+- `maps_provider`: links de pesquisa e rota em mapa externo
 
 ## Como arrancar
 
-1. Criar um ficheiro `.env` local a partir do exemplo:
+1. Criar `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-2. Editar `.env` e preencher os segredos locais:
+2. Ajustar variaveis no `.env`:
 
 - `OPENAI_API_KEY`
+- `OPENAI_MODEL`
+- `MBWAY_MODE`
+- `ADMIN_TOKEN`
+
+Opcional:
+
 - `SIBS_CLIENT_ID`
 - `SIBS_CLIENT_SECRET`
 - `SIBS_BEARER_TOKEN`
 - `SIBS_TERMINAL_ID`
+- `ENABLE_PROVIDER_REFRESH_JOBS`
+- `PROVIDER_REFRESH_INTERVAL_SECONDS`
 
-3. Carregar as variaveis no terminal:
-
-```bash
-set -a
-source .env
-set +a
-```
-
-Valores suportados:
-
-- `mock`: sandbox local. O pagamento e autorizado automaticamente apos alguns segundos.
-- `deeplink`: abre `mbway://send?...` no dispositivo.
-- `sibs_sandbox`: usa checkout real + MB WAY purchase + status query na sandbox SIBS.
-
-Para `sibs_sandbox`, define tambem:
-
-O fluxo real da SIBS pede o numero MB WAY do cliente no momento do check-in. O browser nao consegue descobrir esse numero automaticamente.
-
-4. Iniciar o servidor:
+3. Arrancar:
 
 ```bash
 python3 server.py
 ```
 
-5. Abrir no browser:
+4. Abrir:
 
 ```text
 http://localhost:8000
 ```
 
-## Deploy simples
+## Modos de pagamento
 
-O projeto pode ser publicado como um unico servico Python no Render, servindo frontend e API ao mesmo tempo.
+- `mock`: autorizacao automatica apos alguns segundos
+- `deeplink`: abre `mbway://send?...`
+- `sibs_sandbox`: usa sandbox SIBS se as credenciais estiverem configuradas
 
-Ficheiro incluído:
+## Testes
+
+Executar:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+Cobertura atual:
+
+- triagem
+- recursos
+- mock payment
+- fluxos principais da API
+
+## Deploy
+
+O projeto pode continuar a correr como um unico servico Python no Render.
+
+Ficheiro incluido:
 
 - `render.yaml`
 
-No Render, define as env vars reais:
+No Render, define pelo menos:
 
 - `OPENAI_API_KEY`
+- `OPENAI_MODEL`
 - `MBWAY_MODE`
-- `SIBS_CLIENT_ID`
-- `SIBS_CLIENT_SECRET`
-- `SIBS_BEARER_TOKEN`
-- `SIBS_TERMINAL_ID`
+- `ADMIN_TOKEN`
 
-## Personalizar o comportamento
+## Admin observability
 
-Edita `prompts/advisor_system.txt` com o teu prompt advisory. O servidor lê este ficheiro a cada pedido, por isso podes ajustar o texto e voltar a testar sem recompilar nada.
+Endpoint JSON:
 
-## Seguranca de credenciais
+```text
+/api/admin/status?token=SEU_TOKEN
+```
 
-- `.env` esta ignorado pelo Git e nao deve ser publicado.
-- `.env.example` serve apenas de molde sem segredos reais.
-- Se uma chave aparecer em screenshot, chat, notas ou commits, roda-a imediatamente.
+Pagina HTML:
 
-## Nota sobre a sandbox MB WAY
+```text
+/admin?token=SEU_TOKEN
+```
 
-Documentacao usada para o fluxo real:
+## Limites reais desta v1
 
-- `POST /payments` com `Authorization: Bearer ...`
-- `POST /payments/{transactionID}/mbway-id/purchase` com `Authorization: Digest {transactionSignature}`
-- `GET /payments/{transactionID}/status` com `Authorization: Bearer ...`
-
-## Nota importante
-
-Este projeto e um prototipo de apoio conversacional com IA. Nao deve ser apresentado como substituto de psicoterapia, diagnostico ou resposta a crises.
+- nao faz diagnostico
+- nao substitui SNS 24, 112 ou consulta medica
+- nao promete tempos de espera em tempo real
+- nao promete farmacias de servico em tempo real sem fonte validada
+- usa fallback utilitario quando uma fonte nao estiver validada ou falhar
+- a camada de conversa e curta e deliberadamente limitada
