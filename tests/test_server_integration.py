@@ -77,6 +77,16 @@ class ServerIntegrationTests(unittest.TestCase):
         _, chat = self.request_json("/api/chat", {"session_id": session["session_id"], "message": "Isto continua a pesar."})
         self.assertIn("message", chat)
 
+    def test_session_memory_links_follow_up_query(self) -> None:
+        session_id = "sessao-teste"
+        _, first = self.request_json("/api/triage", {"query": "preciso de um medicamento", "session_id": session_id})
+        self.assertEqual(first["triage"]["triage_class"], "practical_health")
+
+        _, second = self.request_json("/api/triage", {"query": "em lisboa", "session_id": session_id})
+        self.assertEqual(second["triage"]["triage_class"], "practical_health")
+        self.assertTrue(second["memory"]["continued"])
+        self.assertIn("medicamento", second["memory"]["resolved_query"])
+
     def test_admin_status(self) -> None:
         status, payload = self.request_json("/api/admin/status?token=test-admin")
         self.assertEqual(status, 200)

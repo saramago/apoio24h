@@ -40,6 +40,7 @@ class Settings:
     sibs_channel: str
     sibs_base_url: str
     admin_token: str
+    session_memory_ttl_seconds: int
     enable_provider_refresh_jobs: bool
     provider_refresh_interval_seconds: int
 
@@ -62,6 +63,7 @@ def get_settings() -> Settings:
         sibs_base_url=os.environ.get("SIBS_BASE_URL", "https://sandbox.sibspayments.com").strip()
         or "https://sandbox.sibspayments.com",
         admin_token=os.environ.get("ADMIN_TOKEN", "").strip(),
+        session_memory_ttl_seconds=int(os.environ.get("SESSION_MEMORY_TTL_SECONDS", "1800")),
         enable_provider_refresh_jobs=os.environ.get("ENABLE_PROVIDER_REFRESH_JOBS", "0").strip() == "1",
         provider_refresh_interval_seconds=int(os.environ.get("PROVIDER_REFRESH_INTERVAL_SECONDS", "3600")),
     )

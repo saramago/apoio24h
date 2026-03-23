@@ -22,7 +22,8 @@ class ResourceEngineTests(unittest.TestCase):
         triage = TriageResult("practical_health", "Opcoes disponiveis", "Resumo")
         payload = self.engine.build(triage, "preciso de um medicamento")
         titles = [item["title"] for item in payload["resources"]]
-        self.assertIn("INFOMED", titles)
+        self.assertEqual(titles[0], "Pesquisar medicamento")
+        self.assertIn("Ver farmacias proximas", titles)
 
     def test_unvalidated_farmacias_note_is_exposed(self) -> None:
         triage = TriageResult("practical_health", "Opcoes disponiveis", "Resumo")

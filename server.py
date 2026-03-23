@@ -15,6 +15,7 @@ from core.observability import Observability
 from core.payments_engine import PRODUCTS, PaymentManager
 from core.providers import build_provider_registry
 from core.resource_engine import ResourceEngine
+from core.session_memory import SessionMemoryStore
 from core.triage_engine import TriageEngine
 
 
@@ -27,6 +28,7 @@ class AppContext:
         self.resource_engine = ResourceEngine(self.providers)
         self.conversation_engine = ConversationEngine(settings)
         self.payments = PaymentManager(settings)
+        self.session_memory = SessionMemoryStore(settings.session_memory_ttl_seconds)
         self.jobs = ProviderRefreshJobs(self.providers, settings.provider_refresh_interval_seconds)
         self.jobs.warmup()
 
@@ -103,23 +105,32 @@ def make_handler(app: AppContext):
         def _handle_triage(self, data: dict) -> dict:
             query = (data.get("query") or "").strip()
             location = data.get("location") or None
+            session_id = app.session_memory.ensure_session_id(data.get("session_id"))
+            resolved_query, memory_context = app.session_memory.resolve_query(session_id, query)
 
             app.observability.record_event("submitted_query")
-            app.observability.record_query(query)
+            app.observability.record_query(resolved_query)
 
-            triage = app.triage_engine.classify(query)
+            triage = app.triage_engine.classify(resolved_query)
             app.observability.record_event(f"triage_{triage.triage_class}")
+            app.session_memory.remember(session_id, query, triage.triage_class, resolved_query)
 
-            resources = app.resource_engine.build(triage, query, location)
+            resources = app.resource_engine.build(triage, resolved_query, location)
             payload = {
                 "triage": triage.to_dict(),
                 "resources": resources,
                 "products": {"continue_1": PRODUCTS["continue_1"]},
+                "memory": {
+                    **memory_context,
+                    "session_id": session_id,
+                    "triage_class": triage.triage_class,
+                    "resolved_query": resolved_query,
+                },
             }
 
             if triage.triage_class == "light_conversation":
                 app.observability.record_event("free_response_shown")
-                payload["free_response"] = app.conversation_engine.free_response(query)
+                payload["free_response"] = app.conversation_engine.free_response(resolved_query)
 
             return payload
 

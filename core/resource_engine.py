@@ -51,8 +51,7 @@ class ResourceEngine:
                     ),
                 ]
             )
-            resources.extend(self._pick_seed_resources(sns_transparencia, "urgency", region_hint, limit=3))
-            resources.extend(self._pick_sns_contacts(sns_portal, {"emergency", "urgent"}))
+            resources.extend(self._build_emergency_actions(sns_transparencia, sns_portal, maps, region_hint))
             notes.append("Se houver risco imediato, ligue 112.")
 
         elif triage_result.triage_class == "urgent_care":
@@ -65,51 +64,15 @@ class ResourceEngine:
                     ),
                 ]
             )
-            resources.extend(self._pick_seed_resources(sns_transparencia, "urgency", region_hint, limit=4))
-            resources.extend(self._pick_sns_contacts(sns_portal, {"urgent", "reference"}))
+            resources.extend(self._build_urgent_actions(query, sns_transparencia, sns_portal, infarmed, farmacias, maps, region_hint))
             notes.append("Em caso de agravamento, use 112 ou SNS 24.")
-            if self._mentions_medicine(query):
-                resources.extend(self._pick_by_category(infarmed, "medicine"))
             if self._mentions_pharmacy(query):
-                resources.extend(self._pick_by_category(farmacias, "pharmacy"))
                 notes.extend(farmacias.get("notes", []))
 
         elif triage_result.triage_class == "practical_health":
-            actions.append(
-                ActionLink(
-                    label="Abrir mapa",
-                    url=maps.search_url(self._map_query("saude", region_hint)),
-                    style="primary",
-                )
-            )
-            if self._mentions_hospital(query):
-                resources.extend(self._pick_seed_resources(sns_transparencia, "hospital", region_hint, limit=4))
-                actions.append(
-                    ActionLink(
-                        label="Ver hospitais no mapa",
-                        url=maps.search_url(self._map_query("hospital", region_hint)),
-                    )
-                )
-            if self._mentions_urgency(query):
-                resources.extend(self._pick_seed_resources(sns_transparencia, "urgency", region_hint, limit=4))
-                actions.append(
-                    ActionLink(
-                        label="Ver urgencias no mapa",
-                        url=maps.search_url(self._map_query("urgencia hospitalar", region_hint)),
-                    )
-                )
-            if self._mentions_medicine(query):
-                resources.extend(self._pick_by_category(infarmed, "medicine"))
+            resources.extend(self._build_practical_actions(query, sns_transparencia, sns_portal, infarmed, farmacias, maps, region_hint))
             if self._mentions_pharmacy(query):
-                resources.extend(self._pick_by_category(farmacias, "pharmacy"))
-                actions.append(
-                    ActionLink(
-                        label="Ver farmacias no mapa",
-                        url=maps.search_url(self._map_query("farmacia", region_hint)),
-                    )
-                )
                 notes.extend(farmacias.get("notes", []))
-            resources.extend(self._pick_sns_contacts(sns_portal, {"reference"}))
 
         else:
             notes.append("A conversa paga so aparece em situacoes nao urgentes.")
@@ -128,6 +91,277 @@ class ResourceEngine:
             "notes": list(dict.fromkeys(notes)),
             "source_updates": source_updates,
         }
+
+    def _build_emergency_actions(self, sns_transparencia: dict, sns_portal: dict, maps, region_hint: str | None) -> list[ResourceItem]:
+        urgent_resources = self._pick_seed_resources(sns_transparencia, "urgency", region_hint, limit=2)
+        sns_contacts = self._pick_sns_contacts(sns_portal, {"urgent"})
+        items: list[ResourceItem] = [
+            self._make_action_item(
+                title="Ligar 112",
+                description="Iniciar chamada imediata para emergencia medica.",
+                url="tel:112",
+                phone="112",
+                category="emergency",
+                source="sns_portal",
+            ),
+            self._make_action_item(
+                title="Ver urgencias proximas",
+                description="Abrir mapa com urgencias hospitalares na sua zona.",
+                url=maps.search_url(self._map_query("urgencia hospitalar", region_hint)),
+                category="urgency",
+                source="maps_provider",
+            ),
+        ]
+        if urgent_resources:
+            first_urgency = urgent_resources[0]
+            items.append(
+                self._make_action_item(
+                    title="Abrir rota para urgencia",
+                    description="Abrir rota para a opcao mais proxima disponivel.",
+                    url=maps.directions_url(first_urgency.region or "urgencia hospitalar"),
+                    category="urgency",
+                    source="maps_provider",
+                    region=first_urgency.region,
+                )
+            )
+        if sns_contacts:
+            items.append(
+                self._make_action_item(
+                    title="Ligar SNS 24",
+                    description="Usar a linha oficial para triagem nao emergente, se a situacao estiver estavel.",
+                    url=sns_contacts[0].url or "tel:808242424",
+                    phone=sns_contacts[0].phone,
+                    category="urgent",
+                    source="sns_portal",
+                )
+            )
+        return items
+
+    def _build_urgent_actions(
+        self,
+        query: str,
+        sns_transparencia: dict,
+        sns_portal: dict,
+        infarmed: dict,
+        farmacias: dict,
+        maps,
+        region_hint: str | None,
+    ) -> list[ResourceItem]:
+        items: list[ResourceItem] = [
+            self._make_action_item(
+                title="Ligar SNS 24",
+                description="Iniciar contacto oficial para triagem e encaminhamento.",
+                url="tel:808242424",
+                phone="808 24 24 24",
+                category="urgent",
+                source="sns_portal",
+            ),
+            self._make_action_item(
+                title="Ver urgencias proximas",
+                description="Abrir mapa com urgencias hospitalares na sua zona.",
+                url=maps.search_url(self._map_query("urgencia hospitalar", region_hint)),
+                category="urgency",
+                source="maps_provider",
+            ),
+        ]
+        if self._mentions_medicine(query):
+            items.append(
+                self._make_action_item(
+                    title="Pesquisar medicamento",
+                    description="Abrir a pesquisa institucional de medicamentos.",
+                    url=self._first_url_for_category(infarmed, "medicine"),
+                    category="medicine",
+                    source="infarmed_infomed",
+                )
+            )
+        if self._mentions_pharmacy(query) or self._mentions_medicine(query):
+            items.append(
+                self._make_action_item(
+                    title="Ver farmacias proximas",
+                    description="Abrir mapa com farmacias perto de si.",
+                    url=maps.search_url(self._map_query("farmacia", region_hint)),
+                    category="pharmacy",
+                    source="maps_provider",
+                )
+            )
+        items.append(
+            self._make_action_item(
+                title="Ver informacao oficial",
+                description="Abrir a pagina institucional do SNS com contactos e orientacao.",
+                url=self._first_url_for_category(sns_portal, "reference"),
+                category="reference",
+                source="sns_portal",
+            )
+        )
+        return items
+
+    def _build_practical_actions(
+        self,
+        query: str,
+        sns_transparencia: dict,
+        sns_portal: dict,
+        infarmed: dict,
+        farmacias: dict,
+        maps,
+        region_hint: str | None,
+    ) -> list[ResourceItem]:
+        if self._mentions_medicine(query):
+            return [
+                self._make_action_item(
+                    title="Pesquisar medicamento",
+                    description="Abrir a pesquisa oficial de medicamentos.",
+                    url=self._last_url_for_category(infarmed, "medicine"),
+                    category="medicine",
+                    source="infarmed_infomed",
+                ),
+                self._make_action_item(
+                    title="Ver farmacias proximas",
+                    description="Abrir mapa com farmacias perto de si.",
+                    url=maps.search_url(self._map_query("farmacia", region_hint)),
+                    category="pharmacy",
+                    source="maps_provider",
+                ),
+                self._make_action_item(
+                    title="Contactar SNS 24",
+                    description="Iniciar chamada para esclarecimento e encaminhamento.",
+                    url="tel:808242424",
+                    phone="808 24 24 24",
+                    category="urgent",
+                    source="sns_portal",
+                ),
+                self._make_action_item(
+                    title="Ver informacao oficial",
+                    description="Abrir a pagina institucional do INFARMED.",
+                    url=self._first_url_for_category(infarmed, "medicine"),
+                    category="reference",
+                    source="infarmed_infomed",
+                ),
+            ]
+
+        if self._mentions_pharmacy(query):
+            items = [
+                self._make_action_item(
+                    title="Ver farmacias proximas",
+                    description="Abrir mapa com farmacias perto de si.",
+                    url=maps.search_url(self._map_query("farmacia", region_hint)),
+                    category="pharmacy",
+                    source="maps_provider",
+                ),
+                self._make_action_item(
+                    title="Contactar SNS 24",
+                    description="Iniciar chamada se precisar de orientacao adicional.",
+                    url="tel:808242424",
+                    phone="808 24 24 24",
+                    category="urgent",
+                    source="sns_portal",
+                ),
+                self._make_action_item(
+                    title="Ver informacao oficial",
+                    description="Abrir a pagina institucional da rede de farmacias.",
+                    url=self._first_url_for_category(farmacias, "pharmacy"),
+                    category="reference",
+                    source="farmacias_provider",
+                    validated=False,
+                ),
+            ]
+            return items
+
+        if self._mentions_hospital(query):
+            hospitals = self._pick_seed_resources(sns_transparencia, "hospital", region_hint, limit=1)
+            first_hospital = hospitals[0] if hospitals else None
+            return [
+                self._make_action_item(
+                    title="Ver hospitais proximos",
+                    description="Abrir mapa com hospitais na sua zona.",
+                    url=maps.search_url(self._map_query("hospital", region_hint)),
+                    category="hospital",
+                    source="maps_provider",
+                ),
+                self._make_action_item(
+                    title="Abrir rota",
+                    description="Abrir rota para o hospital mais relevante na zona.",
+                    url=maps.directions_url(first_hospital.region or "hospital") if first_hospital else maps.directions_url("hospital"),
+                    category="hospital",
+                    source="maps_provider",
+                    region=first_hospital.region if first_hospital else None,
+                ),
+                self._make_action_item(
+                    title="Ligar SNS 24",
+                    description="Confirmar o encaminhamento antes de se deslocar, se necessario.",
+                    url="tel:808242424",
+                    phone="808 24 24 24",
+                    category="urgent",
+                    source="sns_portal",
+                ),
+                self._make_action_item(
+                    title="Ver portal SNS",
+                    description="Abrir informacao institucional adicional.",
+                    url=self._first_url_for_category(sns_portal, "reference"),
+                    category="reference",
+                    source="sns_portal",
+                ),
+            ]
+
+        if self._mentions_urgency(query):
+            urgencies = self._pick_seed_resources(sns_transparencia, "urgency", region_hint, limit=1)
+            first_urgency = urgencies[0] if urgencies else None
+            return [
+                self._make_action_item(
+                    title="Ver urgencias proximas",
+                    description="Abrir mapa com urgencias hospitalares na sua zona.",
+                    url=maps.search_url(self._map_query("urgencia hospitalar", region_hint)),
+                    category="urgency",
+                    source="maps_provider",
+                ),
+                self._make_action_item(
+                    title="Abrir rota",
+                    description="Abrir rota para a urgencia mais relevante na zona.",
+                    url=maps.directions_url(first_urgency.region or "urgencia hospitalar") if first_urgency else maps.directions_url("urgencia hospitalar"),
+                    category="urgency",
+                    source="maps_provider",
+                    region=first_urgency.region if first_urgency else None,
+                ),
+                self._make_action_item(
+                    title="Ligar SNS 24",
+                    description="Confirmar o melhor encaminhamento antes de sair, se necessario.",
+                    url="tel:808242424",
+                    phone="808 24 24 24",
+                    category="urgent",
+                    source="sns_portal",
+                ),
+                self._make_action_item(
+                    title="Ver portal SNS",
+                    description="Abrir informacao institucional adicional.",
+                    url=self._first_url_for_category(sns_portal, "reference"),
+                    category="reference",
+                    source="sns_portal",
+                ),
+            ]
+
+        return [
+            self._make_action_item(
+                title="Ver recursos no mapa",
+                description="Abrir mapa com recursos de saude proximos.",
+                url=maps.search_url(self._map_query("saude", region_hint)),
+                category="reference",
+                source="maps_provider",
+            ),
+            self._make_action_item(
+                title="Ligar SNS 24",
+                description="Usar a linha oficial para esclarecer o que fazer agora.",
+                url="tel:808242424",
+                phone="808 24 24 24",
+                category="urgent",
+                source="sns_portal",
+            ),
+            self._make_action_item(
+                title="Ver portal SNS",
+                description="Abrir informacao institucional adicional.",
+                url=self._first_url_for_category(sns_portal, "reference"),
+                category="reference",
+                source="sns_portal",
+            ),
+        ]
 
     def _pick_sns_contacts(self, dataset: dict, categories: set[str]) -> list[ResourceItem]:
         items: list[ResourceItem] = []
@@ -164,6 +398,40 @@ class ResourceEngine:
                     )
                 )
         return items
+
+    def _first_url_for_category(self, dataset: dict, category: str) -> str:
+        for raw in dataset.get("items", []):
+            if raw.get("category") == category and raw.get("url"):
+                return raw["url"]
+        return dataset.get("source_url") or "https://www.sns.gov.pt/"
+
+    def _last_url_for_category(self, dataset: dict, category: str) -> str:
+        matching = [raw for raw in dataset.get("items", []) if raw.get("category") == category and raw.get("url")]
+        if matching:
+            return matching[-1]["url"]
+        return self._first_url_for_category(dataset, category)
+
+    def _make_action_item(
+        self,
+        title: str,
+        description: str,
+        url: str | None,
+        category: str,
+        source: str,
+        phone: str | None = None,
+        region: str | None = None,
+        validated: bool = True,
+    ) -> ResourceItem:
+        return ResourceItem(
+            title=title,
+            description=description,
+            url=url,
+            phone=phone,
+            region=region,
+            source=source,
+            validated=validated,
+            category=category,
+        )
 
     def _pick_seed_resources(self, dataset: dict, category: str, region_hint: str | None, limit: int) -> list[ResourceItem]:
         candidates = [item for item in dataset.get("items", []) if item.get("category") == category]

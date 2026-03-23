@@ -1,11 +1,13 @@
 const state = {
     currentQuery: "",
+    currentResolvedQuery: "",
     currentTriageClass: null,
     freeResponseId: null,
     location: null,
     checkinId: null,
     paid: false,
     sessionId: null,
+    browserSessionId: ensureBrowserSessionId(),
     isBusy: false,
 };
 
@@ -77,6 +79,7 @@ form.addEventListener("submit", async (event) => {
     }
 
     state.currentQuery = query;
+    state.currentResolvedQuery = query;
     state.currentTriageClass = null;
     state.freeResponseId = null;
     state.checkinId = null;
@@ -238,7 +241,7 @@ async function submitTriage(query) {
         const response = await fetch("/api/triage", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query, location: state.location }),
+            body: JSON.stringify({ query, location: state.location, session_id: state.browserSessionId }),
         });
         const payload = await readJsonResponse(response);
         if (!response.ok) {
@@ -257,16 +260,18 @@ async function submitTriage(query) {
 function renderTriageResult(payload) {
     const triage = payload.triage || {};
     const resources = payload.resources || {};
+    const memory = payload.memory || {};
+    state.currentResolvedQuery = memory.resolved_query || state.currentQuery;
     state.currentTriageClass = triage.triage_class || null;
 
     resultSection.classList.remove("hidden");
     resultKicker.textContent = triage.triage_class || "resultado";
-    resultHeadline.textContent = buildResultHeadline(triage, state.currentQuery);
-    resultSummary.textContent = buildResultSummary(triage, state.currentQuery);
+    resultHeadline.textContent = buildResultHeadline(triage, state.currentResolvedQuery);
+    resultSummary.textContent = buildResultSummary(triage, state.currentResolvedQuery);
 
     locationTools.classList.toggle("hidden", !["emergency_potential", "urgent_care", "practical_health"].includes(state.currentTriageClass));
     renderActions(resources.actions || []);
-    renderResources(resources.resources || [], resources.notes || [], triage, state.currentQuery);
+    renderResources(resources.resources || [], resources.notes || [], triage, state.currentResolvedQuery);
 
     if (state.currentTriageClass === "light_conversation" && payload.free_response) {
         freeResponseCard.classList.remove("hidden");
@@ -319,6 +324,8 @@ function renderResources(resources, notes, triage, query) {
     resources.forEach((item, index) => {
         const article = document.createElement("article");
         article.className = `resource-item${index === 0 ? " resource-item-primary" : ""}`;
+        const target = item.url && item.url.startsWith("tel:") ? "_self" : "_blank";
+        const rel = target === "_blank" ? ' rel="noreferrer"' : "";
         article.innerHTML = `
             <div class="resource-main">
                 <h3>${escapeHtml(item.title || "")}</h3>
@@ -328,7 +335,7 @@ function renderResources(resources, notes, triage, query) {
                     ${item.phone ? `<a href="tel:${escapeHtml(item.phone.replace(/\s+/g, ""))}">${escapeHtml(item.phone)}</a>` : ""}
                 </div>
             </div>
-            ${item.url ? `<a class="resource-open" href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer">Abrir</a>` : ""}
+            ${item.url ? `<a class="resource-open" href="${escapeHtml(item.url)}" target="${target}"${rel}>Abrir</a>` : ""}
         `;
         resourceList.appendChild(article);
     });
@@ -400,7 +407,7 @@ async function startPaidConversation() {
             body: JSON.stringify({
                 plan: "continue_1",
                 checkin_id: state.checkinId,
-                original_query: state.currentQuery,
+                original_query: state.currentResolvedQuery || state.currentQuery,
             }),
         });
         const payload = await readJsonResponse(response);
@@ -490,6 +497,23 @@ function escapeHtml(value) {
         .replaceAll('"', "&quot;");
 }
 
+function ensureBrowserSessionId() {
+    const storageKey = "apoio24h_session_id";
+    try {
+        const existing = window.sessionStorage.getItem(storageKey);
+        if (existing) {
+            return existing;
+        }
+        const created = typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `sess-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        window.sessionStorage.setItem(storageKey, created);
+        return created;
+    } catch {
+        return `sess-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+}
+
 function buildResourceHeading(triage, query) {
     const normalizedQuery = (query || "").toLowerCase();
     if (triage?.triage_class === "emergency_potential") {
@@ -516,7 +540,7 @@ function buildResourceIntro(triage, query) {
         return "Se houver risco imediato, comece por 112.";
     }
     if (normalizedQuery.includes("medic")) {
-        return "Comece pela pesquisa oficial de medicamentos.";
+        return "Pode comecar por pesquisar o medicamento ou encontrar uma farmacia proxima.";
     }
     if (normalizedQuery.includes("farmac")) {
         return "Comece por verificar a opcao mais proxima disponivel.";
