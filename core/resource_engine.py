@@ -36,6 +36,7 @@ class ResourceEngine:
         maps = self.providers["maps_provider"]
 
         region_hint = self._extract_region_hint(query, location)
+        requires_location = self._requires_location(triage_result, query, region_hint, location)
         resources: list[ResourceItem] = []
         actions: list[ActionLink] = []
         notes: list[str] = []
@@ -86,6 +87,8 @@ class ResourceEngine:
 
         return {
             "region_hint": region_hint,
+            "location_label": self._format_region_label(region_hint),
+            "requires_location": requires_location,
             "actions": [action.to_dict() for action in actions],
             "resources": [item.to_dict() for item in resources],
             "notes": list(dict.fromkeys(notes)),
@@ -457,6 +460,12 @@ class ResourceEngine:
         return items
 
     def _extract_region_hint(self, query: str, location: dict | None) -> str | None:
+        if location and location.get("label"):
+            normalized_label = normalize_text(location["label"])
+            for region, aliases in REGION_ALIASES.items():
+                if normalized_label == region or any(alias in normalized_label for alias in aliases):
+                    return region
+
         normalized_query = normalize_text(query)
         for region, aliases in REGION_ALIASES.items():
             if any(alias in normalized_query for alias in aliases):
@@ -491,6 +500,29 @@ class ResourceEngine:
         if region_hint:
             return f"{label} {region_hint}"
         return f"{label} perto de mim"
+
+    def _requires_location(self, triage_result: TriageResult, query: str, region_hint: str | None, location: dict | None) -> bool:
+        if region_hint:
+            return False
+        if location and (location.get("latitude") is not None or location.get("label")):
+            return False
+        if triage_result.triage_class in {"emergency_potential", "urgent_care"}:
+            return True
+        if triage_result.triage_class == "practical_health":
+            return any(
+                (
+                    self._mentions_medicine(query),
+                    self._mentions_pharmacy(query),
+                    self._mentions_hospital(query),
+                    self._mentions_urgency(query),
+                )
+            )
+        return False
+
+    def _format_region_label(self, region_hint: str | None) -> str | None:
+        if not region_hint:
+            return None
+        return region_hint[:1].upper() + region_hint[1:]
 
     def _mentions_medicine(self, query: str) -> bool:
         normalized = normalize_text(query)

@@ -54,6 +54,7 @@ class ServerIntegrationTests(unittest.TestCase):
         self.assertEqual(payload["triage"]["triage_class"], "emergency_potential")
         self.assertEqual(payload["response"]["title"], "Pode ser uma emergencia")
         self.assertEqual(payload["response"]["actions"][0]["label"], "Ligar 112")
+        self.assertTrue(payload["resources"]["requires_location"])
 
     def test_light_conversation_flow(self) -> None:
         status, payload = self.request_json("/api/triage", {"query": "nao sei o que fazer"})
@@ -85,11 +86,13 @@ class ServerIntegrationTests(unittest.TestCase):
         session_id = "sessao-teste"
         _, first = self.request_json("/api/triage", {"query": "preciso de um medicamento", "session_id": session_id})
         self.assertEqual(first["triage"]["triage_class"], "practical_health")
+        self.assertTrue(first["resources"]["requires_location"])
 
         _, second = self.request_json("/api/triage", {"query": "em lisboa", "session_id": session_id})
         self.assertEqual(second["triage"]["triage_class"], "practical_health")
         self.assertTrue(second["memory"]["continued"])
         self.assertIn("medicamento", second["memory"]["resolved_query"])
+        self.assertEqual(second["resources"]["location_label"], "Lisboa")
 
     def test_admin_status(self) -> None:
         status, payload = self.request_json("/api/admin/status?token=test-admin")

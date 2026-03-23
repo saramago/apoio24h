@@ -4,11 +4,22 @@ const state = {
     currentTriageClass: null,
     freeResponseId: null,
     location: null,
+    locationRequestInFlight: false,
     checkinId: null,
     paid: false,
     sessionId: null,
     browserSessionId: ensureBrowserSessionId(),
     isBusy: false,
+    isAnalyzing: false,
+    activeAbortController: null,
+    requestSequence: 0,
+    activeRequestId: 0,
+    latestAppliedRequestId: 0,
+    lastSubmittedKey: "",
+    autoSubmitTimer: null,
+    manualLocationTimer: null,
+    pendingVoiceTranscript: "",
+    deniedLocationKeys: new Set(),
 };
 
 const examplePlaceholders = [
@@ -19,6 +30,12 @@ const examplePlaceholders = [
     "estou com ansiedade",
     "preciso de um medicamento",
 ];
+
+const DEFAULT_DEBOUNCE_MS = 900;
+const AMBIGUOUS_DEBOUNCE_MS = 1200;
+const MIN_SUBMIT_LENGTH = 4;
+const BLOCKED_AMBIGUOUS_TERMS = new Set(["dor", "ajuda", "ola", "falar"]);
+const SLOW_AMBIGUOUS_TERMS = new Set(["hospital", "farmacia"]);
 
 const form = document.querySelector("#triage-form");
 const queryInput = document.querySelector("#query-input");
@@ -31,6 +48,7 @@ const resultHeadline = document.querySelector("#result-headline");
 const resultSummary = document.querySelector("#result-summary");
 const locationTools = document.querySelector("#location-tools");
 const locationButton = document.querySelector("#location-button");
+const locationManualInput = document.querySelector("#location-manual-input");
 const locationText = document.querySelector("#location-text");
 const resultActions = document.querySelector("#result-actions");
 const resourcePanel = document.querySelector("#resource-panel");
@@ -67,33 +85,7 @@ placeholderTimer = window.setInterval(rotatePlaceholder, 2800);
 
 form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (state.isBusy) {
-        return;
-    }
-
-    const query = queryInput.value.trim();
-    if (!query) {
-        queryInput.focus();
-        setStatus("Escreva o que precisa antes de continuar.");
-        return;
-    }
-
-    state.currentQuery = query;
-    state.currentResolvedQuery = query;
-    state.currentTriageClass = null;
-    state.freeResponseId = null;
-    state.checkinId = null;
-    state.paid = false;
-    state.sessionId = null;
-    resetConversationPanels();
-    await submitTriage(query);
-});
-
-queryInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        form.requestSubmit();
-    }
+    await requestSubmission({ source: "manual", force: true });
 });
 
 voiceButton.addEventListener("click", () => {
@@ -101,11 +93,20 @@ voiceButton.addEventListener("click", () => {
         setStatus("A gravacao de voz nao esta disponivel neste browser.");
         return;
     }
-    if (state.isBusy) {
+    if (state.isBusy || state.locationRequestInFlight) {
         return;
     }
+    clearPendingSubmission();
+    state.pendingVoiceTranscript = "";
     recognition.start();
     setStatus("A ouvir...");
+});
+
+queryInput.addEventListener("input", () => {
+    if (!state.isAnalyzing && !state.isBusy && !state.locationRequestInFlight) {
+        clearStatus();
+    }
+    scheduleAutoSubmit({ source: "text" });
 });
 
 if (recognition) {
@@ -116,12 +117,23 @@ if (recognition) {
             .trim();
 
         if (!transcript) {
-            setStatus("Nao foi possivel perceber o que disse.");
+            state.pendingVoiceTranscript = "";
             return;
         }
 
+        state.pendingVoiceTranscript = transcript;
         queryInput.value = transcript;
-        setStatus("Texto captado. Pode rever e continuar.");
+        setStatus("A analisar...");
+    });
+
+    recognition.addEventListener("end", () => {
+        const transcript = state.pendingVoiceTranscript.trim();
+        state.pendingVoiceTranscript = "";
+        if (!transcript) {
+            setStatus("Nao foi possivel captar um pedido util. Pode repetir.");
+            return;
+        }
+        void requestSubmission({ source: "voice", force: true, explicitQuery: transcript });
     });
 
     recognition.addEventListener("error", () => {
@@ -130,29 +142,23 @@ if (recognition) {
 }
 
 locationButton.addEventListener("click", async () => {
-    if (!navigator.geolocation) {
-        setStatus("A localizacao nao esta disponivel neste dispositivo.");
-        return;
-    }
-    if (!state.currentQuery || state.isBusy) {
-        return;
-    }
+    await requestAutomaticLocation(state.currentResolvedQuery || queryInput.value, { forcedByUser: true });
+});
 
-    setStatus("A obter localizacao...");
-    navigator.geolocation.getCurrentPosition(
-        async (position) => {
-            state.location = {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-            };
-            locationText.textContent = `Localizacao aproximada ativa (${position.coords.latitude.toFixed(3)}, ${position.coords.longitude.toFixed(3)}).`;
-            await submitTriage(state.currentQuery);
-        },
-        () => {
-            setStatus("Nao foi possivel obter a localizacao.");
-        },
-        { enableHighAccuracy: false, maximumAge: 300000, timeout: 8000 },
-    );
+locationManualInput.addEventListener("input", () => {
+    if (!state.currentQuery && !queryInput.value.trim()) {
+        return;
+    }
+    if (state.manualLocationTimer) {
+        window.clearTimeout(state.manualLocationTimer);
+    }
+    const locationLabel = locationManualInput.value.trim();
+    if (!locationLabel) {
+        return;
+    }
+    state.manualLocationTimer = window.setTimeout(() => {
+        void applyManualLocation(locationLabel);
+    }, DEFAULT_DEBOUNCE_MS);
 });
 
 paymentForm.addEventListener("submit", async (event) => {
@@ -235,26 +241,283 @@ chatForm.addEventListener("submit", async (event) => {
     }
 });
 
-async function submitTriage(query) {
-    setBusy(true, "A analisar...");
+function scheduleAutoSubmit({ source }) {
+    clearPendingSubmission();
+    const query = queryInput.value;
+    const normalized = normalizeQueryForComparison(query);
+    const validation = validateAutoSubmission(normalized, source);
+    if (!validation.allowed) {
+        if (validation.blockedMessage && normalized) {
+            state.autoSubmitTimer = window.setTimeout(() => {
+                setStatus(validation.blockedMessage);
+            }, validation.debounceMs);
+        }
+        return;
+    }
+
+    state.autoSubmitTimer = window.setTimeout(() => {
+        void requestSubmission({ source });
+    }, validation.debounceMs);
+}
+
+function clearPendingSubmission() {
+    if (state.autoSubmitTimer) {
+        window.clearTimeout(state.autoSubmitTimer);
+        state.autoSubmitTimer = null;
+    }
+}
+
+async function requestSubmission({ source, force = false, explicitQuery = "" } = {}) {
+    const query = (explicitQuery || queryInput.value || "").trim();
+    const normalized = normalizeQueryForComparison(query);
+    const validation = validateAutoSubmission(normalized, source);
+    if (!query || (!force && !validation.allowed)) {
+        if (source === "voice" && normalized) {
+            setStatus("Diga um pouco mais para eu perceber melhor.");
+        }
+        return false;
+    }
+
+    state.currentQuery = query;
+    state.currentResolvedQuery = query;
+    state.currentTriageClass = null;
+    state.freeResponseId = null;
+    state.checkinId = null;
+    state.paid = false;
+    state.sessionId = null;
+    resetConversationPanels();
+    return submitTriage(query, { source, force });
+}
+
+async function submitTriage(query, { source = "text", force = false } = {}) {
+    clearPendingSubmission();
+    const trimmedQuery = (query || "").trim();
+    const normalized = normalizeQueryForComparison(trimmedQuery);
+    const validation = validateAutoSubmission(normalized, source);
+    if (!trimmedQuery || (!force && !validation.allowed)) {
+        return false;
+    }
+
+    const locationPayload = buildLocationPayload();
+    const submissionKey = `${normalized}::${buildLocationKey(locationPayload)}`;
+    if (!force && submissionKey === state.lastSubmittedKey) {
+        return false;
+    }
+
+    if (state.activeAbortController) {
+        state.activeAbortController.abort();
+    }
+
+    const requestId = ++state.requestSequence;
+    const controller = new AbortController();
+    state.activeAbortController = controller;
+    state.activeRequestId = requestId;
+    state.isAnalyzing = true;
+    setStatus(resultSection.classList.contains("hidden") ? "A analisar..." : "A atualizar resultado...");
+
     try {
         const response = await fetch("/api/triage", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query, location: state.location, session_id: state.browserSessionId }),
+            body: JSON.stringify({ query: trimmedQuery, location: locationPayload, session_id: state.browserSessionId }),
+            signal: controller.signal,
         });
         const payload = await readJsonResponse(response);
         if (!response.ok) {
             throw new Error(payload.error || "Nao foi possivel analisar o pedido.");
         }
+        if (requestId !== state.activeRequestId) {
+            return false;
+        }
 
+        state.lastSubmittedKey = submissionKey;
+        state.latestAppliedRequestId = requestId;
         renderTriageResult(payload);
-        clearStatus();
+        await maybeRequestLocation(payload, normalized, requestId);
+        if (!state.locationRequestInFlight) {
+            clearStatus();
+        }
+        return true;
     } catch (error) {
-        setStatus(error.message);
+        if (error?.name === "AbortError") {
+            return false;
+        }
+        if (requestId === state.activeRequestId) {
+            setStatus(error.message);
+        }
+        return false;
     } finally {
-        setBusy(false);
+        if (requestId === state.activeRequestId) {
+            state.activeAbortController = null;
+            state.isAnalyzing = false;
+        }
     }
+}
+
+function normalizeQueryForComparison(value) {
+    return (value || "")
+        .toLowerCase()
+        .trim()
+        .replace(/[.,!?;:()[\]{}"'`´]+/g, " ")
+        .replace(/\s+/g, " ");
+}
+
+function validateAutoSubmission(normalized, source = "text") {
+    if (!normalized || normalized.length < MIN_SUBMIT_LENGTH) {
+        return { allowed: false, debounceMs: DEFAULT_DEBOUNCE_MS, blockedMessage: "" };
+    }
+    if (BLOCKED_AMBIGUOUS_TERMS.has(normalized)) {
+        return {
+            allowed: false,
+            debounceMs: AMBIGUOUS_DEBOUNCE_MS,
+            blockedMessage: "Diga um pouco mais para eu perceber melhor.",
+        };
+    }
+    if (source === "voice" && normalized.length < MIN_SUBMIT_LENGTH) {
+        return { allowed: false, debounceMs: DEFAULT_DEBOUNCE_MS, blockedMessage: "Diga um pouco mais para eu perceber melhor." };
+    }
+    if (normalized === state.currentResolvedQuery && normalizeQueryForComparison(queryInput.value) === normalized) {
+        // Keep typing continuity, but do not block reclassification with new location.
+    }
+    const debounceMs = SLOW_AMBIGUOUS_TERMS.has(normalized) ? AMBIGUOUS_DEBOUNCE_MS : DEFAULT_DEBOUNCE_MS;
+    return { allowed: true, debounceMs, blockedMessage: "" };
+}
+
+function buildLocationPayload() {
+    if (!state.location) {
+        return null;
+    }
+    if (state.location.latitude !== undefined && state.location.longitude !== undefined) {
+        return {
+            latitude: state.location.latitude,
+            longitude: state.location.longitude,
+        };
+    }
+    if (state.location.label) {
+        return { label: state.location.label };
+    }
+    return null;
+}
+
+function buildLocationKey(location) {
+    if (!location) {
+        return "none";
+    }
+    if (location.label) {
+        return `label:${normalizeQueryForComparison(location.label)}`;
+    }
+    if (location.latitude !== undefined && location.longitude !== undefined) {
+        return `coords:${location.latitude.toFixed(3)}:${location.longitude.toFixed(3)}`;
+    }
+    return "none";
+}
+
+async function maybeRequestLocation(payload, normalizedQuery, requestId) {
+    const resources = payload.resources || {};
+    updateLocationState(resources);
+    if (!resources.requires_location || state.locationRequestInFlight) {
+        return;
+    }
+    if (state.location || state.deniedLocationKeys.has(normalizedQuery)) {
+        if (!state.location && state.deniedLocationKeys.has(normalizedQuery)) {
+            showLocationFallback("Indique cidade ou distrito para refinar o resultado.");
+        }
+        return;
+    }
+    await requestAutomaticLocation(payload.memory?.resolved_query || state.currentResolvedQuery, { requestId });
+}
+
+async function requestAutomaticLocation(query, { forcedByUser = false, requestId = null } = {}) {
+    const normalized = normalizeQueryForComparison(query);
+    if (!forcedByUser && state.deniedLocationKeys.has(normalized)) {
+        showLocationFallback("Indique cidade ou distrito para refinar o resultado.");
+        return;
+    }
+    if (!navigator.geolocation) {
+        showLocationFallback("A localizacao nao esta disponivel neste dispositivo.");
+        return;
+    }
+
+    state.locationRequestInFlight = true;
+    setStatus("A procurar opcoes perto de si...");
+
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            if (requestId && requestId !== state.latestAppliedRequestId) {
+                state.locationRequestInFlight = false;
+                return;
+            }
+            const currentNormalized = normalizeQueryForComparison(queryInput.value || query);
+            if (!forcedByUser && currentNormalized !== normalized) {
+                state.locationRequestInFlight = false;
+                return;
+            }
+
+            state.location = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+            };
+            locationManualInput.classList.add("hidden");
+            locationText.textContent = "A mostrar opcoes perto de si.";
+            state.locationRequestInFlight = false;
+            await submitTriage(queryInput.value || query, { source: "location-auto", force: true });
+        },
+        () => {
+            state.locationRequestInFlight = false;
+            state.deniedLocationKeys.add(normalized);
+            showLocationFallback("Indique cidade ou distrito para refinar o resultado.");
+        },
+        { enableHighAccuracy: false, maximumAge: 300000, timeout: 8000 },
+    );
+}
+
+async function applyManualLocation(locationLabel) {
+    if (!locationLabel) {
+        return;
+    }
+    state.location = { label: locationLabel };
+    locationText.textContent = `Localizacao aproximada ativa: ${formatLocationLabel(locationLabel)}.`;
+    locationManualInput.classList.remove("hidden");
+    await submitTriage(queryInput.value || state.currentQuery, { source: "location-manual", force: true });
+}
+
+function updateLocationState(resources) {
+    if (resources.location_label) {
+        locationText.textContent = `Localizacao aproximada ativa: ${resources.location_label}.`;
+        locationManualInput.classList.add("hidden");
+        return;
+    }
+    if (state.location && state.location.label) {
+        locationText.textContent = `Localizacao aproximada ativa: ${formatLocationLabel(state.location.label)}.`;
+        return;
+    }
+    if (state.location && state.location.latitude !== undefined) {
+        locationText.textContent = "A mostrar opcoes perto de si.";
+        return;
+    }
+    if (!resources.requires_location) {
+        locationText.textContent = "";
+        locationManualInput.classList.add("hidden");
+    }
+}
+
+function showLocationFallback(message) {
+    locationManualInput.classList.remove("hidden");
+    locationText.textContent = message;
+    if (!locationManualInput.value) {
+        locationManualInput.focus();
+    }
+}
+
+function formatLocationLabel(value) {
+    const trimmed = (value || "").trim();
+    if (!trimmed) {
+        return "";
+    }
+    return trimmed
+        .split(/\s+/)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+        .join(" ");
 }
 
 function renderTriageResult(payload) {
@@ -271,6 +534,7 @@ function renderTriageResult(payload) {
     resultSummary.innerHTML = formatStructuredText(response.message || buildResultSummary(triage, state.currentResolvedQuery));
 
     locationTools.classList.toggle("hidden", !["emergency_potential", "urgent_care", "practical_health"].includes(state.currentTriageClass));
+    locationButton.classList.toggle("hidden", !resources.requires_location && !state.location);
     renderActions(response.actions || resources.actions || []);
     if (state.currentTriageClass === "light_conversation") {
         renderResources([], [], triage, state.currentResolvedQuery, []);

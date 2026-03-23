@@ -181,6 +181,17 @@ body {
     align-items: center;
 }
 
+.location-manual-input {
+    min-height: 38px;
+    min-width: min(260px, 100%);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 0 12px;
+    font: inherit;
+    color: var(--text);
+    background: #fff;
+}
+
 .panel {
     border: 1px solid var(--line);
     border-radius: 18px;
@@ -357,6 +368,10 @@ body {
     .hero-actions,
     .result-actions {
         display: grid;
+    }
+
+    .location-manual-input {
+        width: 100%;
     }
 
     .resource-item {
