@@ -1,194 +1,194 @@
 const state = {
-    plan: null,
     checkinId: null,
-    customerPhone: null,
+    customerPhone: "",
     previousResponseId: null,
     isBusy: false,
-    sessionStarted: false,
+    paid: false,
+    freeTurnUsed: false,
+    transcript: "",
 };
 
-const sessionButtons = document.querySelectorAll(".session-button");
-const checkinForm = document.querySelector("#checkin-form");
-const phoneInput = document.querySelector("#phone-input");
-const checkinPanel = document.querySelector("#checkin-panel");
-const chatPanel = document.querySelector("#chat-panel");
+const recordButton = document.querySelector("#record-button");
 const statusText = document.querySelector("#status-text");
+const timerText = document.querySelector("#timer-text");
+const transcriptPanel = document.querySelector("#transcript-panel");
+const transcriptText = document.querySelector("#transcript-text");
+const responsePanel = document.querySelector("#response-panel");
+const responseText = document.querySelector("#response-text");
+const paymentPanel = document.querySelector("#payment-panel");
+const paymentForm = document.querySelector("#payment-form");
+const phoneInput = document.querySelector("#phone-input");
 const paymentNote = document.querySelector("#payment-note");
-const chatLog = document.querySelector("#chat-log");
-const chatForm = document.querySelector("#chat-form");
-const chatInput = document.querySelector("#chat-input");
-const chatHelper = document.querySelector("#chat-helper");
-const jumpButtons = document.querySelectorAll("[data-jump-plan]");
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const recognition = SpeechRecognition ? new SpeechRecognition() : null;
+
+let recognitionTimeout = null;
 let statusPollTimer = null;
 
-jumpButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-        const plan = button.dataset.jumpPlan;
-        const targetButton = document.querySelector(`.session-button[data-plan="${plan}"]`);
-        const purchaseSection = document.querySelector("#purchase");
+if (recognition) {
+    recognition.lang = "pt-PT";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+}
 
-        if (purchaseSection) {
-            purchaseSection.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
+recordButton.addEventListener("click", () => {
+    if (!recognition) {
+        setStatus("Este dispositivo nao suporta gravacao de voz no browser.");
+        return;
+    }
 
-        if (targetButton) {
-            targetButton.classList.add("plan-card-focus");
-            window.setTimeout(() => {
-                targetButton.classList.remove("plan-card-focus");
-            }, 1800);
-        }
+    if (state.isBusy) {
+        return;
+    }
 
-        window.setTimeout(() => {
-            phoneInput.focus();
-        }, 250);
-    });
+    if (state.freeTurnUsed && !state.paid) {
+        paymentPanel.classList.remove("hidden");
+        phoneInput.focus();
+        setStatus("Pode continuar por 1€.");
+        return;
+    }
+
+    startRecording();
 });
 
-sessionButtons.forEach((button) => {
-    button.addEventListener("click", async () => {
-        if (state.isBusy) {
-            return;
-        }
-
-        const enteredPhone = phoneInput.value.trim();
-        if (!enteredPhone) {
-            phoneInput.focus();
-            revealStatus("Indique primeiro o seu numero MB WAY.");
-            return;
-        }
-
-        state.plan = button.dataset.plan;
-        state.customerPhone = enteredPhone;
-        state.sessionStarted = false;
-        state.previousResponseId = null;
-        state.checkinId = null;
-        chatLog.innerHTML = "";
-        chatPanel.classList.add("hidden");
-        clearStatusPoll();
-        setBusy(true, "A preparar o pedido...");
-        revealStatus();
-
-        try {
-            const response = await fetch("/api/checkin", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    plan: state.plan,
-                    customer_phone: state.customerPhone,
-                }),
-            });
-
-            const payload = await readJsonResponse(response);
-            if (!response.ok) {
-                throw new Error(payload.error || "Nao foi possivel iniciar o pedido.");
-            }
-
-            state.checkinId = payload.checkin_id || null;
-            paymentNote.textContent = payload.payment_note || "";
-            statusText.textContent = payload.status || "Pedido criado.";
-
-            if (payload.payment_url && payload.payment_url.startsWith("mbway://")) {
-                window.location.href = payload.payment_url;
-            }
-
-            startStatusPolling();
-        } catch (error) {
-            paymentNote.textContent = "";
-            statusText.textContent = error.message;
-        } finally {
-            setBusy(false);
-        }
-    });
-});
-
-chatForm.addEventListener("submit", async (event) => {
+paymentForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (state.isBusy || !state.sessionStarted) {
+    if (state.isBusy) {
         return;
     }
 
-    const message = chatInput.value.trim();
-    if (!message) {
+    const enteredPhone = phoneInput.value.trim();
+    if (!enteredPhone) {
+        phoneInput.focus();
+        setStatus("Indique primeiro o seu numero MB WAY.");
         return;
     }
 
-    appendMessage("user", message);
-    chatInput.value = "";
-    setBusy(true, "A gerar resposta...");
+    state.customerPhone = enteredPhone;
+    setBusy(true, "A preparar o pagamento...");
+    paymentNote.textContent = "";
 
     try {
-        const response = await fetch("/api/chat", {
+        const response = await fetch("/api/checkin", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                plan: state.plan,
-                message,
-                previous_response_id: state.previousResponseId,
-            }),
-        });
-
-        const payload = await readJsonResponse(response);
-        if (!response.ok) {
-            throw new Error(payload.error || "Erro ao obter resposta.");
-        }
-
-        appendMessage("assistant", payload.message);
-        state.previousResponseId = payload.response_id || state.previousResponseId;
-        statusText.textContent = "Resposta recebida.";
-    } catch (error) {
-        appendMessage("system", error.message);
-        statusText.textContent = error.message;
-    } finally {
-        setBusy(false);
-        chatInput.focus();
-    }
-});
-
-async function startConversation() {
-    if (state.isBusy || !state.plan || !state.checkinId || state.sessionStarted) {
-        return;
-    }
-
-    setBusy(true, "Pagamento autorizado. A iniciar a conversa...");
-
-    try {
-        const response = await fetch("/api/session/start", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                plan: state.plan,
-                checkin_id: state.checkinId,
+                plan: "continue",
                 customer_phone: state.customerPhone,
             }),
         });
 
         const payload = await readJsonResponse(response);
         if (!response.ok) {
-            throw new Error(payload.error || "Nao foi possivel iniciar a conversa.");
+            throw new Error(payload.error || "Nao foi possivel iniciar o pagamento.");
         }
 
-        state.previousResponseId = payload.response_id || null;
-        state.sessionStarted = true;
-        clearStatusPoll();
-        chatPanel.classList.remove("hidden");
-        chatPanel.scrollIntoView({ behavior: "smooth", block: "start" });
-        appendMessage("assistant", payload.message);
-        statusText.textContent = "Conversa iniciada.";
-        chatInput.focus();
+        state.checkinId = payload.checkin_id || null;
+        paymentNote.textContent = payload.payment_note || "";
+        setStatus(payload.status || "Pedido criado.");
+
+        if (payload.payment_url && payload.payment_url.startsWith("mbway://")) {
+            window.location.href = payload.payment_url;
+        }
+
+        startStatusPolling();
     } catch (error) {
-        clearStatusPoll();
-        const message = normalizeStartupError(error.message);
-        appendMessage("system", message);
-        statusText.textContent = message;
+        setStatus(error.message);
     } finally {
         setBusy(false);
     }
+});
+
+if (recognition) {
+    recognition.addEventListener("result", async (event) => {
+        const transcript = Array.from(event.results)
+            .map((result) => result[0]?.transcript || "")
+            .join(" ")
+            .trim();
+
+        stopRecordingTimer();
+
+        if (!transcript) {
+            setStatus("Nao foi possivel perceber o que disse. Tente novamente.");
+            setBusy(false);
+            return;
+        }
+
+        state.transcript = transcript;
+        transcriptPanel.classList.remove("hidden");
+        transcriptText.textContent = transcript;
+        await sendTranscript(transcript);
+    });
+
+    recognition.addEventListener("error", () => {
+        stopRecordingTimer();
+        setBusy(false);
+        setStatus("A gravacao foi interrompida. Tente novamente.");
+    });
+
+    recognition.addEventListener("end", () => {
+        stopRecordingTimer();
+    });
 }
 
-function revealStatus(message) {
-    checkinPanel.classList.remove("hidden");
-    if (message) {
-        statusText.textContent = message;
+function startRecording() {
+    state.transcript = "";
+    transcriptPanel.classList.add("hidden");
+    setBusy(true, "A ouvir...");
+    timerText.classList.remove("hidden");
+    timerText.textContent = "Pode falar ate 60 segundos.";
+
+    recognition.start();
+    recognitionTimeout = window.setTimeout(() => {
+        recognition.stop();
+    }, 60000);
+}
+
+function stopRecordingTimer() {
+    if (recognitionTimeout) {
+        window.clearTimeout(recognitionTimeout);
+        recognitionTimeout = null;
+    }
+    timerText.classList.add("hidden");
+}
+
+async function sendTranscript(transcript) {
+    setStatus("A organizar a resposta...");
+
+    try {
+        const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                plan: state.previousResponseId ? "continue" : "free",
+                message: transcript,
+                previous_response_id: state.previousResponseId,
+            }),
+        });
+
+        const payload = await readJsonResponse(response);
+        if (!response.ok) {
+            throw new Error(payload.error || "Nao foi possivel gerar a resposta.");
+        }
+
+        state.previousResponseId = payload.response_id || state.previousResponseId;
+        state.freeTurnUsed = true;
+        responsePanel.classList.remove("hidden");
+        responseText.textContent = payload.message;
+        speakText(payload.message);
+
+        if (!state.paid) {
+            paymentPanel.classList.remove("hidden");
+            paymentNote.textContent = "Pode continuar por 1€.";
+            setStatus("Primeira resposta concluida.");
+        } else {
+            setStatus("Resposta pronta.");
+        }
+    } catch (error) {
+        setStatus(normalizeStartupError(error.message));
+    } finally {
+        setBusy(false);
     }
 }
 
@@ -209,7 +209,7 @@ function clearStatusPoll() {
 }
 
 async function checkCheckinStatus() {
-    if (!state.checkinId || state.sessionStarted) {
+    if (!state.checkinId || state.paid) {
         clearStatusPoll();
         return;
     }
@@ -221,37 +221,59 @@ async function checkCheckinStatus() {
             throw new Error(payload.error || "Nao foi possivel validar o pagamento.");
         }
 
-        statusText.textContent = payload.status;
+        setStatus(payload.status);
         paymentNote.textContent = payload.payment_note || paymentNote.textContent;
 
         if (payload.status_code === "AUTHORIZED" || payload.status_code === "Success") {
-            await startConversation();
+            state.paid = true;
+            clearStatusPoll();
+            paymentNote.textContent = "Pagamento confirmado. Pode voltar a falar quando quiser.";
+            setStatus("Pode falar novamente.");
         }
     } catch (error) {
         clearStatusPoll();
-        statusText.textContent = error.message;
+        setStatus(error.message);
     }
 }
 
-function appendMessage(role, content) {
-    const item = document.createElement("article");
-    item.className = `message ${role}`;
-    item.textContent = content;
-    chatLog.appendChild(item);
-    chatLog.scrollTop = chatLog.scrollHeight;
+function speakText(text) {
+    if (!("speechSynthesis" in window)) {
+        return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "pt-PT";
+    utterance.rate = 0.92;
+    utterance.pitch = 0.95;
+    utterance.volume = 1;
+
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice =
+        voices.find((voice) => voice.lang === "pt-PT" && /catarina|joana|maria/i.test(voice.name)) ||
+        voices.find((voice) => voice.lang === "pt-PT") ||
+        voices.find((voice) => voice.lang.startsWith("pt")) ||
+        null;
+
+    if (preferredVoice) {
+        utterance.voice = preferredVoice;
+    }
+
+    window.speechSynthesis.speak(utterance);
 }
 
 function setBusy(value, message) {
     state.isBusy = value;
-    sessionButtons.forEach((button) => {
-        button.disabled = value;
-    });
+    recordButton.disabled = value;
     phoneInput.disabled = value;
-    chatInput.disabled = value || !state.sessionStarted;
-    chatForm.querySelector("button[type='submit']").disabled = value || !state.sessionStarted;
+    paymentForm.querySelector("button[type='submit']").disabled = value;
     if (message) {
-        statusText.textContent = message;
+        setStatus(message);
     }
+}
+
+function setStatus(message) {
+    statusText.textContent = message;
 }
 
 async function readJsonResponse(response) {
@@ -259,30 +281,23 @@ async function readJsonResponse(response) {
     const rawText = await response.text();
 
     if (!contentType.includes("application/json")) {
-        if (rawText.includes("<html")) {
-            throw new Error(
-                "O frontend foi aberto sem backend ativo. Execute o server.py para usar o pedido, o pagamento e a conversa."
-            );
-        }
-        throw new Error("A resposta do servidor nao veio em JSON.");
+        throw new Error("O servidor devolveu uma resposta invalida.");
     }
 
     try {
         return JSON.parse(rawText);
-    } catch (error) {
+    } catch {
         throw new Error("O servidor devolveu JSON invalido.");
     }
 }
 
-checkinForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-});
-
-chatHelper.textContent = "Em modo mock, o pagamento e autorizado automaticamente para testes. Com OPENAI_API_KEY ativa, a conversa arranca logo depois.";
-
 function normalizeStartupError(message) {
     if (message.includes("insufficient_quota") || message.includes("HTTP 429")) {
-        return "De momento, nao foi possivel iniciar a conversa. Tente novamente dentro de instantes.";
+        return "De momento, nao foi possivel gerar a resposta. Tente novamente dentro de instantes.";
     }
     return message;
+}
+
+if ("speechSynthesis" in window) {
+    window.speechSynthesis.onvoiceschanged = () => {};
 }

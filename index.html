@@ -3,156 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Organize o que tem na cabeca em poucos minutos</title>
+    <title>Falar agora</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <main class="page-shell">
-        <section class="hero card">
-            <div class="hero-grid">
-                <div class="hero-copy">
-                    <p class="eyebrow">Servico pontual</p>
-                    <h1>Organize o que tem na cabeca em poucos minutos</h1>
-                    <p class="lede">Escreve o problema. Recebe uma resposta estruturada com proximos passos simples.</p>
-                    <div class="hero-actions">
-                        <button type="button" class="primary-cta" data-jump-plan="5min">Comecar por 1€</button>
-                        <p class="hero-note">Sem complicar. Sem compromisso.</p>
-                    </div>
-                </div>
-                <div class="hero-side">
-                    <div class="info-box soft">
-                        <p class="info-title">Como funciona</p>
-                        <ol class="steps">
-                            <li>Escreves o problema.</li>
-                            <li>Recebes uma resposta organizada.</li>
-                            <li>Ficas com um proximo passo claro.</li>
-                        </ol>
-                    </div>
-                    <div class="info-box">
-                        <p class="info-title">Pagamento</p>
-                        <p>O pedido sera enviado para o numero <strong>912606050</strong>.</p>
-                    </div>
-                </div>
-            </div>
+    <main class="voice-shell">
+        <section class="voice-stage">
+            <p class="voice-prompt">Diga o que tem na cabeca</p>
+            <button type="button" id="record-button" class="record-button">Falar agora</button>
+            <p id="status-text" class="status-text">Primeira resposta gratuita.</p>
+            <p id="timer-text" class="timer-text hidden">A gravar...</p>
         </section>
 
-        <section class="card example-card">
-            <div class="section-head stacked">
-                <div>
-                    <p class="eyebrow">Exemplo real</p>
-                    <h2>O que recebe na pratica</h2>
-                </div>
-                <p class="section-copy">O objetivo e organizar o problema e reduzir indecisao, sem dramatizacao.</p>
-            </div>
-
-            <div class="example-chat">
-                <article class="message user example-message">
-                    <span class="message-label">Utilizador</span>
-                    <p>Tenho de decidir se mudo de trabalho e estou indeciso.</p>
-                </article>
-                <article class="message assistant example-message">
-                    <span class="message-label">Sistema</span>
-                    <p>Vamos organizar:</p>
-                    <p>1. Principais vantagens.</p>
-                    <p>2. Principais riscos.</p>
-                    <p>3. O que mais pesa neste momento.</p>
-                    <p>Com base nisso, a melhor decisao agora e pedir mais informacao antes de decidir.</p>
-                </article>
-            </div>
+        <section id="transcript-panel" class="voice-card hidden">
+            <p class="voice-label">O que disse</p>
+            <p id="transcript-text" class="voice-copy"></p>
         </section>
 
-        <section class="card flow-card" id="purchase">
-            <div class="section-head stacked">
-                <div>
-                    <p class="eyebrow">Formatos</p>
-                    <h2>Escolha um formato e comece</h2>
-                </div>
-                <p class="section-copy">Uma unica acao: pagar e abrir a conversa.</p>
-            </div>
+        <section id="response-panel" class="voice-card hidden">
+            <p class="voice-label">Resposta</p>
+            <p id="response-text" class="voice-copy"></p>
+        </section>
 
-            <form id="checkin-form" class="checkin-form">
-                <label class="phone-field">
-                    <span>Insira o seu numero de telemovel com MB WAY</span>
-                    <input id="phone-input" name="customer_phone" type="tel" placeholder="Ex.: 919999999" required>
-                </label>
-
-                <div class="plans-grid" id="session-buttons">
-                    <button type="button" class="plan-card plan-pink session-button" data-plan="5min">
-                        <span class="plan-tag">1€</span>
-                        <strong>Resposta simples</strong>
-                        <small>1 interacao estruturada.</small>
-                    </button>
-                    <button type="button" class="plan-card plan-green session-button" data-plan="30min">
-                        <span class="plan-tag">3€</span>
-                        <strong>Resposta mais detalhada</strong>
-                        <small>2 a 3 interacoes.</small>
-                    </button>
-                    <button type="button" class="plan-card plan-blue session-button" data-plan="60min">
-                        <span class="plan-tag">7€</span>
-                        <strong>Sessao mais completa</strong>
-                        <small>Organizacao e proximos passos.</small>
-                    </button>
-                </div>
+        <section id="payment-panel" class="voice-card hidden">
+            <p class="voice-label">Continuar</p>
+            <p class="voice-copy">Pode continuar por 1€.</p>
+            <form id="payment-form" class="payment-form">
+                <input id="phone-input" name="customer_phone" type="tel" placeholder="Numero MB WAY" required>
+                <button type="submit" class="pay-button">Continuar por 1€</button>
             </form>
-
-            <div id="checkin-panel" class="status-box hidden">
-                <p id="status-text">Escolha um formato para comecar.</p>
-                <p id="payment-note" class="small-text"></p>
-            </div>
+            <p id="payment-note" class="helper-text"></p>
         </section>
 
-        <section class="card trust-card">
-            <div class="trust-grid">
-                <div class="trust-item">
-                    <p class="eyebrow">Confianca</p>
-                    <h2>Nao guardamos conversas pessoais.</h2>
-                </div>
-                <div class="trust-item">
-                    <p class="eyebrow">Sem compromisso</p>
-                    <h2>Pode parar a qualquer momento.</h2>
-                </div>
-            </div>
-        </section>
-
-        <section class="card final-cta">
-            <div class="final-cta-copy">
-                <p class="eyebrow">Fecho</p>
-                <h2>Se precisa de organizar isto agora, pode comecar em poucos segundos.</h2>
-            </div>
-            <button type="button" class="primary-cta large" data-jump-plan="5min">Comecar por 1€</button>
-        </section>
-
-        <section id="chat-panel" class="card chat-panel hidden">
-            <div class="section-head stacked">
-                <div>
-                    <p class="eyebrow">Conversa</p>
-                    <h2>Escreva o problema</h2>
-                </div>
-                <p class="section-copy">O chat abre automaticamente assim que o pagamento fica autorizado.</p>
-            </div>
-
-            <div id="chat-log" class="chat-log" aria-live="polite"></div>
-
-            <form id="chat-form" class="chat-form">
-                <textarea id="chat-input" name="message" rows="4" placeholder="Escreve aqui o problema concreto..." required></textarea>
-                <div class="chat-actions">
-                    <p class="small-text" id="chat-helper">
-                        Em modo mock, o pagamento e autorizado automaticamente para testes.
-                    </p>
-                    <button type="submit" class="send-button">Enviar</button>
-                </div>
-            </form>
-        </section>
-
-        <section class="card notice">
-            <p class="eyebrow">Aviso importante</p>
-            <p>
-                Este servico nao substitui apoio clinico nem resposta de emergencia.
-            </p>
-        </section>
+        <footer class="voice-footer">
+            <span>Privado</span>
+            <span>Sem gravacao permanente</span>
+            <span>Sem julgamento</span>
+        </footer>
     </main>
 
     <script src="/static/app.js"></script>
